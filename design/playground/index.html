@@ -1,0 +1,1365 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spoken — the sheet, every state</title>
+<!-- Built by `npm run playground` from design/playground/shell.html; edit that, not index.html. -->
+<style>
+/* ------------------------------------------------------------------
+   Obsidian's own variables, approximating the default theme, so the
+   plugin's styles.css (inlined below, unchanged) previews outside the
+   app. Inside Obsidian the same names come from whatever theme is on.
+   ------------------------------------------------------------------ */
+body {
+	--font-interface: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, system-ui, sans-serif;
+	--font-text: var(--font-interface);
+	--font-ui-smaller: 12px; --font-ui-small: 13px; --font-ui-medium: 15px; --font-ui-large: 20px;
+	--font-normal: 400; --font-medium: 500; --font-semibold: 600; --font-bold: 700;
+	--size-4-1: 4px; --size-4-2: 8px; --size-4-3: 12px; --size-4-4: 16px; --size-4-5: 20px;
+	--size-4-6: 24px; --size-4-8: 32px; --size-4-12: 48px;
+	--radius-s: 4px; --radius-m: 8px; --radius-l: 12px; --radius-xl: 16px;
+	--input-height: 30px;
+}
+.theme-dark {
+	--background-primary: #1e1e1e;
+	--background-secondary: #262626;
+	--background-modifier-border: #363636;
+	--background-modifier-hover: rgba(255, 255, 255, 0.075);
+	--interactive-normal: #2a2a2a;
+	--interactive-accent: #7f6df2;
+	--interactive-accent-hover: #8a7bf5;
+	--text-normal: #dadada;
+	--text-muted: #b3b3b3;
+	--text-faint: #666666;
+	--text-on-accent: #ffffff;
+	--text-error: #fb464c;
+	--color-red: #fb464c;
+	--color-orange: #e9973f;
+	--color-green: #44cf6e;
+	--shadow-l: 0 8px 40px rgba(0, 0, 0, 0.5);
+	--page: #0d0d0d; --page-text: #cfcfcf; --chrome: #1a1a1a;
+}
+.theme-light {
+	--background-primary: #ffffff;
+	--background-secondary: #f6f6f6;
+	--background-modifier-border: #e0e0e0;
+	--background-modifier-hover: rgba(0, 0, 0, 0.075);
+	--interactive-normal: #ffffff;
+	--interactive-accent: #7852ee;
+	--interactive-accent-hover: #6a45d8;
+	--text-normal: #222222;
+	--text-muted: #5c5c5c;
+	--text-faint: #ababab;
+	--text-on-accent: #ffffff;
+	--text-error: #e93147;
+	--color-red: #e93147;
+	--color-orange: #ec7500;
+	--color-green: #08b94e;
+	--shadow-l: 0 8px 40px rgba(0, 0, 0, 0.18);
+	--page: #e8e8ea; --page-text: #333333; --chrome: #f0f0f2;
+}
+
+/* Obsidian's base button and modal, approximately. */
+button {
+	font-family: var(--font-interface);
+	font-size: var(--font-ui-small);
+	height: var(--input-height);
+	padding: 0 var(--size-4-3);
+	border: 0;
+	border-radius: var(--radius-s);
+	background: var(--interactive-normal);
+	color: var(--text-normal);
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+button.mod-cta { background: var(--interactive-accent); color: var(--text-on-accent); }
+button.mod-cta:hover { background: var(--interactive-accent-hover); }
+.modal-container { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 5; }
+.modal-bg { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.5); }
+.modal {
+	position: relative; box-sizing: border-box;
+	width: var(--dialog-width, 560px); max-width: 80vw; max-height: 85%;
+	padding: var(--size-4-4); display: flex; flex-direction: column;
+	background: var(--background-primary); color: var(--text-normal);
+	border: 1px solid var(--background-modifier-border); border-radius: var(--radius-l);
+	box-shadow: var(--shadow-l); font-family: var(--font-interface);
+}
+.modal-close-button { position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; display: grid; place-items: center;
+	font-size: 20px; color: var(--text-muted); cursor: pointer; border-radius: var(--radius-s); }
+.modal-title { font-weight: var(--font-semibold); }
+.is-phone .modal-container { align-items: flex-end; }
+.is-phone .modal { width: 100%; max-width: 100%; border-radius: var(--radius-xl) var(--radius-xl) 0 0; border-width: 1px 0 0; }
+.is-phone .modal-close-button { width: 44px; height: 44px; border-radius: 50%; top: -6px; right: 12px; background: var(--background-secondary); }
+
+/* ---- the page ---- */
+html, body { margin: 0; }
+body { background: var(--page); color: var(--page-text); font-family: var(--font-interface); padding: 20px 24px 40px; }
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin-bottom: 16px; }
+h1 { font-size: 15px; font-weight: 600; margin: 0; }
+#states { display: flex; flex-wrap: wrap; gap: 4px; }
+#states button, #theme { height: 28px; border-radius: 14px; box-shadow: none; border: 1px solid var(--background-modifier-border);
+	background: var(--chrome); color: var(--page-text); font-size: 12px; cursor: pointer; }
+#states button.is-on { background: var(--interactive-accent); color: var(--text-on-accent); border-color: transparent; }
+#log { min-height: 18px; font-size: 12px; opacity: 0.75; margin: 0 0 12px; }
+.frames { display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap; }
+.label { font-size: 12px; opacity: 0.7; margin: 0 0 8px; }
+
+/* The phone: 390×844 CSS px, Obsidian mobile's note behind the sheet. */
+.phone { width: 390px; height: 844px; border-radius: 44px; overflow: hidden; position: relative;
+	background: var(--background-primary); color: var(--text-normal);
+	outline: 10px solid #111; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35); margin: 10px; }
+.desk { width: 880px; height: 640px; border-radius: 10px; overflow: hidden; position: relative;
+	background: var(--background-primary); color: var(--text-normal);
+	border: 1px solid var(--background-modifier-border); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25); }
+.statusbar { height: 44px; display: flex; justify-content: space-between; align-items: center; padding: 0 28px; font-size: 13px; font-weight: 600; }
+.titlebar { display: flex; justify-content: space-between; align-items: center; padding: 6px 16px; font-size: 14px; color: var(--text-muted); }
+.titlebar b { color: var(--text-normal); }
+.note { padding: 12px 22px; font-size: 16px; line-height: 1.6; }
+.note h2 { font-size: 24px; margin: 4px 0 12px; }
+.note p { margin: 0 0 12px; }
+.desk .ribbon { position: absolute; left: 0; top: 0; bottom: 0; width: 44px; background: var(--background-secondary); border-right: 1px solid var(--background-modifier-border); }
+.desk .side { position: absolute; left: 44px; top: 0; bottom: 0; width: 200px; background: var(--background-secondary); border-right: 1px solid var(--background-modifier-border); }
+.desk .note { position: absolute; left: 244px; right: 0; top: 0; padding: 48px 64px; }
+#toasts { position: fixed; top: 16px; right: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 10; }
+.toast { background: var(--background-secondary); color: var(--text-normal); border: 1px solid var(--background-modifier-border);
+	border-radius: 8px; padding: 10px 14px; font-size: 13px; box-shadow: var(--shadow-l); }
+</style>
+<style>
+/* Spoken — the sheet. Obsidian's own variables only, so it follows the theme.
+   design/playground renders every state of it from this file.
+
+   Two text sizes (--font-ui-medium, --font-ui-small) plus the timer, the
+   4-point --size-4-* scale for every gap, --radius-l for every corner. */
+
+.modal.spoken-modal {
+	padding: 0;
+	border-radius: var(--radius-l);
+	--dialog-width: 440px;
+	overflow: hidden;
+}
+/* On a phone the modal is a bottom sheet: round only at the top. */
+.is-phone .modal.spoken-modal {
+	border-radius: var(--radius-l) var(--radius-l) 0 0;
+}
+/* Obsidian's close button and title, inside this modal only (src/modal.ts
+   marks them). Escape, the backdrop and Cancel still close it. */
+.modal.spoken-modal > .spoken-chrome {
+	display: none;
+}
+
+.modal.spoken-modal .modal-content.spoken {
+	display: flex;
+	flex-direction: column;
+	/* One height for every state, so a change of state never resizes the sheet. */
+	height: min(380px, 72vh);
+	padding: var(--size-4-2) var(--size-4-5) var(--size-4-4);
+	padding-bottom: calc(var(--size-4-4) + env(safe-area-inset-bottom, 0px));
+	font-size: var(--font-ui-medium);
+	overflow: hidden;
+}
+
+/* Only a sheet has a handle; a desktop or tablet dialog starts with its header. */
+.spoken-handle {
+	flex: none;
+	height: 0;
+	margin-bottom: var(--size-4-2);
+}
+.is-phone .spoken-handle {
+	width: 36px;
+	height: 4px;
+	margin: 0 auto var(--size-4-3);
+	border-radius: var(--radius-l);
+	background: var(--background-modifier-border);
+}
+
+/* The header: a status pill, and the note's name in the muted colour. */
+.spoken-head {
+	flex: none;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--size-4-3);
+	min-height: 28px;
+}
+.spoken-pill {
+	display: inline-flex;
+	flex: none;
+	align-items: center;
+	gap: var(--size-4-2);
+	height: 28px;
+	padding: 0 var(--size-4-3) 0 var(--size-4-2);
+	border-radius: var(--radius-l);
+	background: var(--background-secondary);
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-semibold);
+	color: var(--text-normal);
+}
+.spoken-into {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+}
+
+.spoken-dot {
+	width: 8px;
+	height: 8px;
+	flex: none;
+	border-radius: 50%;
+	background: var(--text-faint);
+}
+.spoken-pill.is-recording .spoken-dot {
+	background: var(--color-red);
+	animation: spoken-pulse 1.6s ease-in-out infinite;
+}
+.spoken-pill.is-amber {
+	color: var(--color-orange);
+}
+.spoken-pill.is-amber .spoken-dot {
+	background: var(--color-orange);
+	animation: spoken-pulse 0.8s ease-in-out infinite;
+}
+.spoken-pill.is-quiet .spoken-dot {
+	background: var(--color-green);
+}
+.spoken-pill.is-error .spoken-dot {
+	background: var(--text-error);
+}
+@keyframes spoken-pulse {
+	50% {
+		opacity: 0.35;
+	}
+}
+.spoken-spin {
+	width: 12px;
+	height: 12px;
+	flex: none;
+	box-sizing: border-box;
+	border-radius: 50%;
+	border: 2px solid var(--background-modifier-border);
+	border-top-color: var(--interactive-accent);
+	animation: spoken-spin 0.9s linear infinite;
+}
+@keyframes spoken-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+/* The hero's room: whatever is left between the header and the footer. */
+.spoken-body {
+	flex: 1;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+	padding-top: var(--size-4-4);
+}
+.spoken-body.is-entering {
+	animation: spoken-in 150ms ease-out;
+}
+@keyframes spoken-in {
+	from {
+		opacity: 0;
+	}
+}
+
+/* Recording, Cleaning and Polishing share this, so moving between them moves nothing. */
+.spoken-stage {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	align-items: stretch;
+	gap: var(--size-4-2);
+}
+.spoken-clock {
+	text-align: center;
+	font-variant-numeric: tabular-nums;
+	font-size: var(--font-ui-large);
+	font-weight: var(--font-medium);
+	line-height: 1.2;
+	color: var(--text-normal);
+}
+.spoken-cap {
+	color: var(--text-faint);
+	font-weight: var(--font-normal);
+}
+.spoken-clock.is-amber .spoken-now {
+	color: var(--color-orange);
+}
+.spoken-clock.is-faint .spoken-now {
+	color: var(--text-muted);
+}
+
+/* The canvas draws in its own `color`. */
+.spoken-wave {
+	display: block;
+	width: 100%;
+	height: 96px;
+	color: var(--interactive-accent);
+}
+/* Waiting on Gemini: the last of the take, still, with light passing over it. */
+.spoken-wave.is-frozen {
+	color: var(--text-faint);
+	-webkit-mask-image: linear-gradient(100deg, rgba(0, 0, 0, 0.45) 30%, #000 50%, rgba(0, 0, 0, 0.45) 70%);
+	mask-image: linear-gradient(100deg, rgba(0, 0, 0, 0.45) 30%, #000 50%, rgba(0, 0, 0, 0.45) 70%);
+	-webkit-mask-size: 250% 100%;
+	mask-size: 250% 100%;
+	animation: spoken-shimmer 1.6s linear infinite;
+}
+@keyframes spoken-shimmer {
+	from {
+		-webkit-mask-position: 100% 0;
+		mask-position: 100% 0;
+	}
+	to {
+		-webkit-mask-position: 0 0;
+		mask-position: 0 0;
+	}
+}
+.spoken-caption {
+	min-height: 1.5em;
+	text-align: center;
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+}
+.spoken-caption.is-amber {
+	color: var(--color-orange);
+}
+
+/* Ready: the words on the sheet's own surface, scrolling inside it. */
+.spoken-text {
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	font-family: var(--font-text);
+	font-size: var(--font-ui-medium);
+	line-height: 1.55;
+	white-space: pre-wrap;
+	user-select: text;
+	-webkit-user-select: text;
+	color: var(--text-normal);
+	/* Words scrolling out under the meta line fade rather than cut; the padding lets the last line clear the fade. */
+	padding-bottom: var(--size-4-4);
+	-webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - var(--size-4-6)), transparent);
+	mask-image: linear-gradient(to bottom, #000 calc(100% - var(--size-4-6)), transparent);
+}
+.spoken-meta {
+	flex: none;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--size-4-3);
+	padding-top: var(--size-4-3);
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+	font-variant-numeric: tabular-nums;
+}
+.spoken-note {
+	flex: none;
+	padding-top: var(--size-4-2);
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+}
+.spoken-note.is-error {
+	color: var(--text-error);
+}
+
+/* Off · Light · Full. */
+.spoken-seg {
+	display: inline-flex;
+	flex: none;
+	padding: 2px;
+	gap: 2px;
+	border-radius: var(--radius-l);
+	background: var(--background-secondary);
+}
+.modal.spoken-modal button.spoken-seg-item {
+	height: 28px;
+	padding: 0 var(--size-4-3);
+	border: none;
+	border-radius: var(--radius-l);
+	background: transparent;
+	box-shadow: none;
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-medium);
+	color: var(--text-muted);
+	cursor: pointer;
+	transition: background-color 150ms ease, color 150ms ease;
+}
+.modal.spoken-modal button.spoken-seg-item.is-active {
+	background: var(--background-primary);
+	color: var(--text-normal);
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+/* Failed and Unsupported: the message is the hero. */
+.spoken-message {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	gap: var(--size-4-2);
+	text-align: center;
+	line-height: 1.5;
+}
+.spoken-message-text {
+	color: var(--text-normal);
+}
+.spoken-message-then {
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+}
+
+/* The footer: one primary action full width, the rest as text beneath it. */
+.spoken-foot {
+	flex: none;
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-1);
+	padding-top: var(--size-4-4);
+}
+.spoken-primary-room {
+	height: 48px;
+}
+.modal.spoken-modal button.spoken-primary {
+	width: 100%;
+	height: 48px;
+	border-radius: var(--radius-l);
+	font-size: var(--font-ui-medium);
+	font-weight: var(--font-semibold);
+	cursor: pointer;
+}
+.spoken-quiet-row {
+	display: flex;
+	justify-content: center;
+	gap: var(--size-4-2);
+}
+.modal.spoken-modal button.spoken-quiet {
+	height: 40px;
+	padding: 0 var(--size-4-4);
+	border: none;
+	border-radius: var(--radius-l);
+	background: transparent;
+	box-shadow: none;
+	font-size: var(--font-ui-medium);
+	font-weight: var(--font-medium);
+	color: var(--text-muted);
+	cursor: pointer;
+}
+.modal.spoken-modal button.spoken-quiet:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+.modal.spoken-modal button.spoken-quiet.is-danger {
+	color: var(--text-error);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.spoken-body.is-entering,
+	.spoken-wave.is-frozen,
+	.spoken-pill .spoken-dot {
+		animation: none;
+	}
+}
+
+/* Settings: the Check key result and the steps to a key, both inside the key row's description. */
+.spoken-keycheck:empty {
+	display: none;
+}
+.spoken-keycheck {
+	margin: var(--size-4-1) 0 0;
+}
+.spoken-keycheck[data-outcome="works"] {
+	color: var(--text-success);
+}
+.spoken-keycheck[data-outcome="refused"],
+.spoken-keycheck[data-outcome="unknown model"],
+.spoken-keycheck[data-outcome="unreachable"],
+.spoken-keycheck[data-outcome="no key"],
+.spoken-keycheck[data-outcome="other"] {
+	color: var(--text-error);
+}
+.spoken-keyhelp {
+	margin: var(--size-4-2) 0 0;
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+}
+.spoken-keyhelp summary {
+	cursor: pointer;
+	color: var(--text-normal);
+}
+
+</style>
+</head>
+<body class="theme-dark">
+<header>
+	<h1>Spoken — the sheet, every state</h1>
+	<div id="states"></div>
+	<button id="theme">Light</button>
+</header>
+<p id="log"></p>
+<div class="frames">
+	<div>
+		<p class="label">Phone, 390 × 844</p>
+		<div class="phone is-mobile is-phone">
+			<div class="statusbar"><span>9:41</span><span>●●● ▮</span></div>
+			<div class="titlebar"><span>‹</span><b>Trail notes</b><span>⋯</span></div>
+			<div class="note">
+				<h2>Trail notes</h2>
+				<p>Walked the ridge loop before the call with Simin. The dental thing keeps coming back to the same question: who is the one customer this is for.</p>
+				<p>Notes from the onboarding calls, so far:</p>
+			</div>
+			<div id="phone-host"></div>
+		</div>
+	</div>
+	<div>
+		<p class="label">Desktop</p>
+		<div class="desk">
+			<div class="ribbon"></div><div class="side"></div>
+			<div class="note">
+				<h2>Trail notes</h2>
+				<p>Walked the ridge loop before the call with Simin. The dental thing keeps coming back to the same question: who is the one customer this is for.</p>
+				<p>Notes from the onboarding calls, so far:</p>
+			</div>
+			<div id="desk-host"></div>
+		</div>
+	</div>
+</div>
+<div id="toasts"></div>
+<script>
+"use strict";
+(() => {
+  // design/playground/obsidian-stub.ts
+  var proto = HTMLElement.prototype;
+  proto.createEl = function(tag, o = {}) {
+    const e = document.createElement(tag);
+    if (o.cls) e.classList.add(...(Array.isArray(o.cls) ? o.cls : o.cls.split(" ")).filter(Boolean));
+    if (o.text !== void 0) e.textContent = o.text;
+    if (o.href !== void 0) e.setAttribute("href", o.href);
+    for (const [k, v] of Object.entries(o.attr ?? {})) e.setAttribute(k, v);
+    this.appendChild(e);
+    return e;
+  };
+  proto.createDiv = function(o) {
+    return this.createEl("div", o);
+  };
+  proto.createSpan = function(o) {
+    return this.createEl("span", o);
+  };
+  proto.setText = function(text) {
+    this.textContent = text;
+  };
+  proto.empty = function() {
+    this.replaceChildren();
+  };
+  Element.prototype.addClass = function(...cls) {
+    this.classList.add(...cls);
+  };
+  proto.removeClass = function(...cls) {
+    this.classList.remove(...cls);
+  };
+  var App = class {
+  };
+  var TFile = class {
+    constructor(basename) {
+      this.basename = basename;
+    }
+  };
+  var MarkdownView = class {
+  };
+  var Notice = class {
+    constructor(message) {
+      const host = document.getElementById("toasts");
+      if (!host) return;
+      const t = host.createDiv({ cls: "toast", text: message });
+      window.setTimeout(() => t.remove(), 2600);
+    }
+  };
+  var _Modal = class _Modal {
+    constructor(app) {
+      this.app = app;
+      this.shouldRestoreSelection = true;
+      this.onKey = (ev) => {
+        if (ev.key === "Escape") this.close();
+      };
+      this.containerEl = document.createElement("div");
+      this.containerEl.className = "modal-container mod-dim";
+      this.containerEl.createDiv({ cls: "modal-bg" }).addEventListener("click", () => this.close());
+      this.modalEl = this.containerEl.createDiv({ cls: "modal" });
+      this.modalEl.createDiv({ cls: "modal-close-button", text: "\xD7" }).addEventListener("click", () => this.close());
+      this.titleEl = this.modalEl.createDiv({ cls: "modal-title" });
+      this.contentEl = this.modalEl.createDiv({ cls: "modal-content" });
+    }
+    open() {
+      _Modal.host.appendChild(this.containerEl);
+      document.addEventListener("keydown", this.onKey);
+      this.onOpen();
+    }
+    close() {
+      if (!this.containerEl.isConnected) return;
+      document.removeEventListener("keydown", this.onKey);
+      this.containerEl.remove();
+      this.onClose();
+    }
+    onOpen() {
+    }
+    onClose() {
+    }
+  };
+  _Modal.host = document.body;
+  var Modal = _Modal;
+
+  // src/insert.ts
+  function withLeadingSpace(lineBeforeCursor, text) {
+    if (lineBeforeCursor.length === 0) return text;
+    return /\s$/.test(lineBeforeCursor) ? text : " " + text;
+  }
+  function insertAtCursor(editor, text) {
+    const at = editor.getCursor();
+    const before = editor.getLine(at.line).slice(0, at.ch);
+    const words2 = withLeadingSpace(before, text);
+    editor.transaction({
+      changes: [{ from: at, text: words2 }],
+      selection: { from: after(at, words2) }
+    });
+    editor.focus();
+  }
+  function after(at, text) {
+    const lines = text.split("\n");
+    return lines.length === 1 ? { line: at.line, ch: at.ch + text.length } : { line: at.line + lines.length - 1, ch: lines[lines.length - 1].length };
+  }
+
+  // src/transcriber.ts
+  var TranscribeError = class extends Error {
+    constructor(message, status) {
+      super(message);
+      this.status = status;
+      this.name = "TranscribeError";
+    }
+  };
+
+  // src/polish.ts
+  var POLISH_LEVELS = {
+    off: "Off",
+    light: "Light",
+    full: "Full"
+  };
+  var WORD_DRIFT = {
+    light: 0.1,
+    full: 0.25
+  };
+  var WHY_UNREADABLE = "Gemini's answer wasn't a transcript";
+  var WHY_EMPTY = "Gemini's answer was empty";
+  var WHY_REPLY = "Gemini's answer read as a reply, not the transcript";
+  var WHY_SKIPPED = "skipped";
+  var whyWords = (raw, polished) => `the answer had ${polished} words for ${raw} spoken`;
+  var whyNewName = (word) => `the answer had "${word}", which wasn't said`;
+  var PolishError = class extends Error {
+    constructor(why) {
+      super(why);
+      this.why = why;
+      this.name = "PolishError";
+    }
+  };
+  function countWords(text) {
+    return text.split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
+  }
+  var REPLY_OPENINGS = [
+    /^(sure|certainly|of course|absolutely|got it|understood|great question)\b[,.!:]/i,
+    /^here(?:'s| is| are)\b.*\b(polish|transcript|version|text|edit|answer)/i,
+    /^(i|i'm|i am|i've|i have|i can|i can't|i cannot|i'll|i will|i would)\b.*\b(polish|transcript|help|answer|assist|request|text)\b/i,
+    /^as an (ai|assistant|language model)\b/i,
+    /^(the )?(polished|corrected|edited) (transcript|text|version)\b/i,
+    /^(note|notes|changes)\s*:/i,
+    /<\/?(transcript|terms)>/i
+  ];
+  function looksLikeReply(line, raw) {
+    const l = line.replace(/^[-*>#\s]+/, "").replace(/^["“']/, "").trim();
+    if (!l) return false;
+    const plainRaw = raw.toLowerCase().replace(/\s+/g, " ");
+    return REPLY_OPENINGS.some((re) => {
+      const m = re.exec(l);
+      return !!m && !plainRaw.includes(m[0].toLowerCase().replace(/[,.!:]$/, "").replace(/\s+/g, " "));
+    });
+  }
+  var FUNCTION_WORDS = new Set(
+    "a an the and but or so also then i i'm i'll i've i'd it it's its this that these those there here we you he she they my our your his her their is are was were be to of in on at for with as if when".split(" ")
+  );
+  function bare(word) {
+    return word.toLowerCase().replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "").replace(/[’]/g, "'");
+  }
+  function newName(raw, polished, terms) {
+    const known = new Set([...raw.split(/\s+/), ...terms.flatMap((t) => t.split(/\s+/))].map(bare));
+    for (const word of polished.split(/\s+/)) {
+      const w = bare(word);
+      if (!w || !/^\p{Lu}/u.test(word.replace(/^[^\p{L}\p{N}]+/u, ""))) continue;
+      if (known.has(w) || FUNCTION_WORDS.has(w)) continue;
+      return word.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "");
+    }
+    return null;
+  }
+  function guard(raw, polished, level, terms = []) {
+    if (!polished.trim()) return WHY_EMPTY;
+    const before = countWords(raw);
+    const after2 = countWords(polished);
+    if (Math.abs(after2 - before) > WORD_DRIFT[level] * before) return whyWords(before, after2);
+    if (polished.split("\n").some((line) => looksLikeReply(line, raw))) return WHY_REPLY;
+    const name = newName(raw, polished, terms);
+    if (name) return whyNewName(name);
+    return null;
+  }
+  async function polishTranscript(polisher, raw, level, terms) {
+    if (level === "off") return { text: raw, level, ran: true };
+    let text;
+    try {
+      text = await polisher.polish(raw, level, terms);
+    } catch (e) {
+      return { text: raw, level, ran: false, why: e instanceof PolishError ? e.why : WHY_UNREADABLE };
+    }
+    const why = guard(raw, text, level, terms);
+    return why ? { text: raw, level, ran: false, why } : { text, level, ran: true };
+  }
+
+  // src/recorder.ts
+  var RecorderCancelled = class extends Error {
+    constructor() {
+      super("Recording was cancelled.");
+      this.name = "RecorderCancelled";
+    }
+  };
+  function microphoneError(e) {
+    const name = e instanceof Error || e && typeof e === "object" && "name" in e ? String(e.name) : "";
+    if (name === "NotAllowedError" || name === "SecurityError") return "Obsidian isn't allowed to use the microphone. Allow it in the phone's settings for Obsidian, then try again.";
+    if (name === "NotFoundError" || name === "OverconstrainedError") return "No microphone was found.";
+    if (name === "NotReadableError") return "The microphone is in use by another app.";
+    return "The microphone couldn't be started.";
+  }
+
+  // src/session.ts
+  var WARN_BEFORE_CAP_MS = 3e4;
+  var TICK_MS = 200;
+  var CANNOT_RECORD = "This device can't record audio in Obsidian, so there is nothing to dictate with here.";
+  var DictationSession = class {
+    constructor(deps) {
+      this.deps = deps;
+      this._phase = { kind: "starting" };
+      this.recorder = null;
+      this.stopTicking = null;
+      this.startedAt = 0;
+      this.warned = false;
+      this.take = null;
+      /** The transcript as heard: kept for re-polishing until Insert or Discard, never written anywhere. */
+      this.raw = null;
+      this.durationMs = 0;
+      /** Bumped on every way out of a phase, so late answers from an old one are ignored. */
+      this.generation = 0;
+      this.listeners = [];
+    }
+    get phase() {
+      return this._phase;
+    }
+    onChange(fn) {
+      this.listeners.push(fn);
+    }
+    /** Input loudness now, 0..1, while recording. */
+    level() {
+      return this._phase.kind === "recording" && this.recorder ? this.recorder.level() : 0;
+    }
+    /** Starts a fresh recording. Also Retake, and Try again when there is no take to resend. */
+    async record() {
+      if (this._phase.kind === "closed") return;
+      this.letGo();
+      this.take = null;
+      this.raw = null;
+      this.durationMs = 0;
+      this.warned = false;
+      const gen = ++this.generation;
+      const recorder = this.deps.recorders();
+      if (!recorder) {
+        this.set({ kind: "unsupported", message: CANNOT_RECORD });
+        return;
+      }
+      this.recorder = recorder;
+      recorder.onError = (message) => {
+        if (gen !== this.generation) return;
+        const durationMs = this.elapsed();
+        this.letGo();
+        this.set({ kind: "failed", message, durationMs, takeKept: false });
+      };
+      this.set({ kind: "starting" });
+      try {
+        await recorder.start();
+      } catch (e) {
+        if (gen !== this.generation || e instanceof RecorderCancelled) return;
+        this.letGo();
+        this.set({ kind: "failed", message: microphoneError(e), durationMs: 0, takeKept: false });
+        return;
+      }
+      if (gen !== this.generation) {
+        recorder.release();
+        return;
+      }
+      this.startedAt = this.deps.clock.now();
+      this.stopTicking = this.deps.clock.every(TICK_MS, () => this.tick());
+      this.set({ kind: "recording", elapsedMs: 0, warning: false });
+      this.deps.signal("started");
+    }
+    /** Stop: the take goes to be cleaned. */
+    async stop() {
+      if (this._phase.kind !== "recording" || !this.recorder) return;
+      const recorder = this.recorder;
+      this.durationMs = this.elapsed();
+      this.stopClock();
+      const gen = ++this.generation;
+      this.set({ kind: "cleaning", durationMs: this.durationMs, terms: null });
+      let take;
+      try {
+        take = await recorder.stop();
+      } catch {
+        recorder.release();
+        if (gen !== this.generation) return;
+        this.recorder = null;
+        this.set({ kind: "failed", message: "The recording couldn't be finished.", durationMs: this.durationMs, takeKept: false });
+        return;
+      }
+      recorder.release();
+      if (this.recorder === recorder) this.recorder = null;
+      if (gen !== this.generation) return;
+      this.take = take;
+      await this.clean(gen);
+    }
+    /** Try again: resend the kept take, or record afresh if there is none. */
+    async retry() {
+      if (this._phase.kind !== "failed") return;
+      if (!this.take) return this.record();
+      const gen = ++this.generation;
+      this.set({ kind: "cleaning", durationMs: this.durationMs, terms: null });
+      await this.clean(gen);
+    }
+    /** Retake: throw the words away and record again. */
+    retake() {
+      return this.record();
+    }
+    /** Polish this take again at another level, from the kept transcript: no re-recording, no re-transcribing. */
+    async repolish(level) {
+      if (this._phase.kind !== "ready" || this._phase.targetGone || !this.raw) return;
+      const gen = ++this.generation;
+      await this.polish(gen, level);
+    }
+    /** Skip, while polishing: show the transcript as heard. */
+    skipPolish() {
+      if (this._phase.kind !== "polishing" || !this.raw) return;
+      const level = this._phase.level;
+      this.generation++;
+      this.ready({ text: this.raw.text, level, ran: false, why: WHY_SKIPPED });
+    }
+    /** Insert was pressed but the editor is no longer there: keep the words, offer Copy. */
+    targetGone() {
+      if (this._phase.kind === "ready") this.set({ ...this._phase, targetGone: true });
+    }
+    /** Every way out — Cancel, Discard, Insert done, the sheet closing, the plugin unloading. */
+    close() {
+      if (this._phase.kind === "closed") return;
+      this.generation++;
+      this.letGo();
+      this.take = null;
+      this.raw = null;
+      this.set({ kind: "closed" });
+      this.listeners = [];
+    }
+    async clean(gen) {
+      const take = this.take;
+      if (!take) return;
+      try {
+        const terms = await this.deps.terms();
+        if (gen !== this.generation) return;
+        this.set({ kind: "cleaning", durationMs: this.durationMs, terms: terms.length });
+        const result = await this.deps.transcriber.transcribe(take.audio, take.mimeType, terms);
+        if (gen !== this.generation) return;
+        this.raw = { text: result.text, biased: result.biased };
+      } catch (e) {
+        if (gen !== this.generation) return;
+        const message = e instanceof TranscribeError ? e.message : "The recording couldn't be cleaned.";
+        this.set({ kind: "failed", message, durationMs: this.durationMs, takeKept: true });
+        return;
+      }
+      await this.polish(gen, this.deps.polishLevel());
+    }
+    /** Polishes the kept transcript and shows the result. Polish never fails the take: at worst it shows the transcript. */
+    async polish(gen, level) {
+      const raw = this.raw;
+      if (!raw) return;
+      if (level === "off") {
+        this.ready({ text: raw.text, level, ran: true });
+        return;
+      }
+      this.set({ kind: "polishing", durationMs: this.durationMs, level });
+      let terms = [];
+      try {
+        terms = await this.deps.polishTerms();
+      } catch {
+      }
+      if (gen !== this.generation) return;
+      const result = await polishTranscript(this.deps.polisher, raw.text, level, terms);
+      if (gen !== this.generation) return;
+      this.ready(result);
+    }
+    ready(polish) {
+      if (!this.raw) return;
+      this.set({ kind: "ready", text: polish.text, biased: this.raw.biased, durationMs: this.durationMs, targetGone: false, polish });
+    }
+    tick() {
+      if (this._phase.kind !== "recording") return;
+      const elapsedMs = this.elapsed();
+      if (elapsedMs >= this.deps.capMs) {
+        void this.stop();
+        this.deps.signal("cap");
+        return;
+      }
+      const warning = elapsedMs >= this.deps.capMs - WARN_BEFORE_CAP_MS;
+      if (warning && !this.warned) {
+        this.warned = true;
+        this.deps.signal("warning");
+      }
+      this.set({ kind: "recording", elapsedMs, warning });
+    }
+    elapsed() {
+      return this.startedAt ? this.deps.clock.now() - this.startedAt : 0;
+    }
+    stopClock() {
+      this.stopTicking?.();
+      this.stopTicking = null;
+    }
+    /** Stops the clock and releases the microphone, whatever state it is in. */
+    letGo() {
+      this.stopClock();
+      this.startedAt = 0;
+      if (this.recorder) {
+        this.recorder.release();
+        this.recorder = null;
+      }
+    }
+    set(p) {
+      if (p.kind === "recording") this.deps.awake.hold();
+      else this.deps.awake.release();
+      this._phase = p;
+      for (const fn of this.listeners) fn(p);
+    }
+  };
+
+  // src/modal.ts
+  var BARS = 48;
+  var DictateModal = class extends Modal {
+    constructor(app, target, deps, termCount, onGone) {
+      super(app);
+      this.target = target;
+      this.termCount = termCount;
+      this.onGone = onGone;
+      this.shownKind = null;
+      this.shownWarning = false;
+      this.clockEl = null;
+      this.captionEl = null;
+      this.canvas = null;
+      this.levels = new Array(BARS).fill(0);
+      this.frame = 0;
+      this.lastSample = 0;
+      this.session = new DictationSession(deps);
+      this.capMs = deps.capMs;
+    }
+    onOpen() {
+      this.modalEl.addClass("spoken-modal");
+      this.hideChrome();
+      this.session.onChange((p) => this.render(p));
+      this.render(this.session.phase);
+      void this.session.record();
+    }
+    onClose() {
+      this.session.close();
+      this.stopWave();
+      this.contentEl.empty();
+      this.onGone(this);
+    }
+    /** Called when the user leaves the note: the take is thrown away, as in the app. */
+    leftTarget() {
+      this.close();
+    }
+    get file() {
+      return this.target.file;
+    }
+    /**
+     * Obsidian's own close button and empty title are hidden inside this modal
+     * only: Cancel, Discard, Escape and the backdrop still close it. They are
+     * found as whatever in the modal is not the content, so no Obsidian class
+     * name is relied on (1.13 renamed the close button's).
+     */
+    hideChrome() {
+      for (const child of Array.from(this.modalEl.children)) {
+        if (child !== this.contentEl && !child.contains(this.contentEl)) child.addClass("spoken-chrome");
+      }
+    }
+    render(p) {
+      if (p.kind === "closed") return;
+      const warning = p.kind === "recording" && p.warning;
+      if (p.kind === this.shownKind && warning === this.shownWarning && p.kind === "recording") {
+        this.updateRecording(p);
+        return;
+      }
+      this.shownKind = p.kind;
+      this.shownWarning = warning;
+      this.stopWave();
+      this.clockEl = this.captionEl = null;
+      this.canvas = null;
+      const el = this.contentEl;
+      el.empty();
+      el.addClass("spoken");
+      el.createDiv({ cls: "spoken-handle" });
+      const head = el.createDiv({ cls: "spoken-head" });
+      const body = el.createDiv({ cls: "spoken-body" });
+      const foot = el.createDiv({ cls: "spoken-foot" });
+      switch (p.kind) {
+        case "unsupported":
+          this.head(head, "error", "Can't record");
+          this.message(body, p.message);
+          this.foot(foot, ["Close", () => this.close()], []);
+          break;
+        case "starting":
+          this.head(head, "busy", "Starting");
+          this.stage(body, "0:00", true, false, false, "Allow the microphone if Obsidian asks.");
+          this.foot(foot, null, [["Cancel", () => this.close()]]);
+          this.drawWave(false);
+          break;
+        case "recording":
+          this.head(head, p.warning ? "amber" : "recording", "Recording");
+          this.stage(body, fmt(p.elapsedMs), true, p.warning, false, "");
+          this.foot(foot, ["Stop", () => void this.session.stop()], [["Cancel", () => this.close()]]);
+          this.updateRecording(p);
+          this.startWave();
+          break;
+        case "cleaning":
+          this.head(head, "busy", "Cleaning");
+          this.stage(body, fmt(p.durationMs), false, false, true, p.terms === null ? "Sending the take" : `Biased with ${p.terms} ${plural(p.terms, "term")}`);
+          this.foot(foot, null, [["Cancel", () => this.close()]]);
+          this.drawWave(true);
+          break;
+        case "polishing":
+          this.head(head, "busy", "Polishing");
+          this.stage(body, fmt(p.durationMs), false, false, true, `${POLISH_LEVELS[p.level]} polish \xB7 names from the terms note`);
+          this.foot(foot, null, [
+            ["Cancel", () => this.close()],
+            ["Skip", () => this.session.skipPolish()]
+          ]);
+          this.drawWave(true);
+          break;
+        case "ready": {
+          this.head(head, "quiet", "Ready");
+          body.createDiv({ cls: "spoken-text", text: p.text });
+          const meta = body.createDiv({ cls: "spoken-meta" });
+          meta.createSpan({ cls: "spoken-facts", text: `${words(p.text)} ${plural(words(p.text), "word")} \xB7 ${fmt(p.durationMs)}` });
+          if (!p.targetGone) {
+            this.levelControl(meta, selectedLevel(p.polish));
+            if (!p.polish.ran) body.createDiv({ cls: "spoken-note", text: `Polish did not run: ${p.polish.why}. This is the transcript as heard.` });
+            this.foot(foot, ["Insert", () => this.insert(p.text)], [
+              ["Discard", () => this.close()],
+              ["Retake", () => void this.session.retake()]
+            ]);
+          } else {
+            body.createDiv({ cls: ["spoken-note", "is-error"], text: `${this.target.file.basename} is no longer open for editing, so the words weren't inserted anywhere else. Copy them, or discard them.` });
+            this.foot(foot, ["Copy", () => void this.copy(p.text)], [["Discard", () => this.close()]]);
+          }
+          break;
+        }
+        case "failed":
+          this.head(head, "error", "Not cleaned");
+          this.message(body, p.message, p.takeKept ? "Try again when you have signal, or discard it." : "Try again to record, or close.");
+          this.foot(foot, ["Try again", () => void this.session.retry()], [["Discard", () => this.close(), true]]);
+          break;
+      }
+      body.addClass("is-entering");
+    }
+    /** One quiet line: a status pill on the left, the note's name on the right. */
+    head(head, pill, word) {
+      const state = head.createDiv({ cls: ["spoken-pill", `is-${pill}`] });
+      state.createSpan({ cls: pill === "busy" ? "spoken-spin" : "spoken-dot" });
+      state.createSpan({ text: word });
+      head.createDiv({ cls: "spoken-into", text: this.target.file.basename });
+    }
+    /** Recording's hero, kept through Cleaning and Polishing: the timer, the wave, one caption. */
+    stage(body, now, cap, amber, frozen, caption) {
+      const stage = body.createDiv({ cls: "spoken-stage" });
+      const clock = stage.createDiv({ cls: ["spoken-clock", ...amber ? ["is-amber"] : [], ...frozen ? ["is-faint"] : []] });
+      this.clockEl = clock.createSpan({ cls: "spoken-now", text: now });
+      if (cap) clock.createSpan({ cls: "spoken-cap", text: ` / ${fmt(this.capMs)}` });
+      this.canvas = stage.createEl("canvas", { cls: ["spoken-wave", ...frozen ? ["is-frozen"] : []] });
+      this.captionEl = stage.createDiv({ cls: ["spoken-caption", ...amber ? ["is-amber"] : []], text: caption });
+    }
+    message(body, text, then) {
+      const box = body.createDiv({ cls: "spoken-message" });
+      box.createDiv({ cls: "spoken-message-text", text });
+      if (then) box.createDiv({ cls: "spoken-message-then", text: then });
+    }
+    /**
+     * At most one full-width primary button, then the quiet ones as text in one
+     * row. Without a primary, its room is kept, so Cancel stays where it was.
+     */
+    foot(foot, primary, quiet) {
+      if (primary) {
+        const b = foot.createEl("button", { cls: ["spoken-primary", "mod-cta"], text: primary[0] });
+        b.addEventListener("click", primary[1]);
+      } else {
+        foot.createDiv({ cls: "spoken-primary-room" });
+      }
+      if (!quiet.length) return;
+      const row = foot.createDiv({ cls: "spoken-quiet-row" });
+      for (const [text, fn, danger] of quiet) {
+        const b = row.createEl("button", { cls: ["spoken-quiet", ...danger ? ["is-danger"] : []], text });
+        b.addEventListener("click", fn);
+      }
+    }
+    /** Off · Light · Full: the level this take shows, and the others one tap away (each re-polishes the kept transcript). */
+    levelControl(meta, current2) {
+      const seg = meta.createDiv({ cls: "spoken-seg", attr: { role: "group", "aria-label": "Polish" } });
+      for (const level of Object.keys(POLISH_LEVELS)) {
+        const on = level === current2;
+        const b = seg.createEl("button", {
+          cls: ["spoken-seg-item", ...on ? ["is-active"] : []],
+          text: POLISH_LEVELS[level],
+          attr: { "aria-pressed": on ? "true" : "false" }
+        });
+        b.addEventListener("click", () => {
+          if (!on) void this.session.repolish(level);
+        });
+      }
+    }
+    updateRecording(p) {
+      this.clockEl?.setText(fmt(p.elapsedMs));
+      if (!this.captionEl) return;
+      if (p.warning) {
+        const left = Math.max(0, Math.ceil((this.capMs - p.elapsedMs) / 1e3));
+        this.captionEl.setText(`${left} ${plural(left, "second")} left`);
+      } else {
+        this.captionEl.setText(`Names and terms: ${this.termCount}`);
+      }
+    }
+    // The wave: a canvas of recent loudness, so nothing is styled inline.
+    startWave() {
+      const step = (t) => {
+        if (t - this.lastSample > 90) {
+          this.lastSample = t;
+          this.levels.push(this.session.level());
+          this.levels.shift();
+        }
+        this.drawWave(false);
+        this.frame = window.requestAnimationFrame(step);
+      };
+      this.frame = window.requestAnimationFrame(step);
+    }
+    stopWave() {
+      if (this.frame) window.cancelAnimationFrame(this.frame);
+      this.frame = 0;
+    }
+    drawWave(frozen) {
+      const canvas = this.canvas;
+      if (!canvas) return;
+      const ratio = window.devicePixelRatio || 1;
+      const w = canvas.clientWidth, h = canvas.clientHeight;
+      if (!w || !h) return;
+      if (canvas.width !== Math.round(w * ratio)) canvas.width = Math.round(w * ratio);
+      if (canvas.height !== Math.round(h * ratio)) canvas.height = Math.round(h * ratio);
+      const g = canvas.getContext("2d");
+      if (!g) return;
+      g.setTransform(ratio, 0, 0, ratio, 0, 0);
+      g.clearRect(0, 0, w, h);
+      g.fillStyle = getComputedStyle(canvas).color;
+      const pitch = w / BARS, bar2 = Math.max(2, pitch * 0.5);
+      this.levels.forEach((v, i) => {
+        const bh = Math.max(bar2, Math.min(h, (frozen ? 0.12 + 0.45 * v : 0.06 + v) * h));
+        const x = i * pitch + (pitch - bar2) / 2, y = (h - bh) / 2, r = bar2 / 2;
+        g.beginPath();
+        g.arc(x + r, y + r, r, Math.PI, 0);
+        g.arc(x + r, y + bh - r, r, 0, Math.PI);
+        g.closePath();
+        g.fill();
+      });
+    }
+    // Insert, or Copy when the editor is gone.
+    insert(text) {
+      if (!this.targetAlive()) {
+        this.session.targetGone();
+        return;
+      }
+      insertAtCursor(this.target.editor, text);
+      this.shouldRestoreSelection = false;
+      this.close();
+    }
+    targetAlive() {
+      const { ctx, editor, file } = this.target;
+      if (ctx.file !== file || ctx.editor !== editor) return false;
+      if (ctx instanceof MarkdownView) return ctx.getMode() === "source" && ctx.containerEl.isConnected;
+      return true;
+    }
+    async copy(text) {
+      try {
+        await navigator.clipboard.writeText(text);
+        new Notice("Spoken: copied the words.");
+        this.close();
+      } catch {
+        new Notice("Spoken: couldn't copy. Select the text in the sheet and copy it by hand.");
+      }
+    }
+  };
+  function selectedLevel(p) {
+    return p.ran ? p.level : null;
+  }
+  function fmt(ms) {
+    const s = Math.floor(ms / 1e3);
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  }
+  function words(text) {
+    const t = text.trim();
+    return t ? t.split(/\s+/).length : 0;
+  }
+  function plural(n, word) {
+    return n === 1 ? word : word + "s";
+  }
+
+  // design/playground/main.ts
+  var CAP_MS = 5 * 6e4;
+  var NOTE = "Trail notes \u2014 the one-customer question";
+  var SHORT = "Call Simin back about the trial before Friday.";
+  var LONG = "Walked the ridge loop before the call with Simin. What I keep coming back to is the one-customer question. Flio has about ten practices paying; if I take the trial to year end at five to ten hours a week, the thing to decide first is which single practice we design for, not the equity.\n\nSecond thing: the onboarding call. Every practice asked the same three questions in the first ten minutes, and none of them were about price. They wanted to know who sees the recordings, whether the front desk has to change anything, and what happens when the internet drops in the middle of a day. If the answers to those fit on one page, that page is the sales deck.\n\nLast: book the dentist, and ask Lena whether the cabin is free the second weekend of November.";
+  var ready = (text, extra = {}) => ({
+    kind: "ready",
+    text,
+    biased: true,
+    durationMs: 42e3,
+    targetGone: false,
+    polish: { text, level: "light", ran: true },
+    ...extra
+  });
+  var STATES = [
+    { name: "Starting", phase: { kind: "starting" } },
+    { name: "Recording", phase: { kind: "recording", elapsedMs: 42e3, warning: false } },
+    { name: "Recording, 30 s left", phase: { kind: "recording", elapsedMs: CAP_MS - 28e3, warning: true } },
+    { name: "Cleaning", phase: { kind: "cleaning", durationMs: 42e3, terms: 12 } },
+    { name: "Polishing", phase: { kind: "polishing", durationMs: 42e3, level: "light" } },
+    { name: "Ready, long", phase: ready(LONG) },
+    { name: "Ready, short", phase: ready(SHORT) },
+    { name: "Ready, not polished", phase: ready(SHORT, { polish: { text: SHORT, level: "light", ran: false, why: "Gemini took too long" } }) },
+    { name: "Ready, note gone", phase: ready(SHORT, { targetGone: true }) },
+    { name: "Failed", phase: { kind: "failed", message: "Google couldn't be reached. The recording is still here.", durationMs: 42e3, takeKept: true } },
+    { name: "Unsupported", phase: { kind: "unsupported", message: "This device can't record audio in Obsidian, so there is nothing to dictate with here." } }
+  ];
+  function loudness(t) {
+    const phrase = t % 4.2 / 4.2;
+    if (phrase > 0.82) return 0.03 + 0.02 * Math.abs(Math.sin(t * 31));
+    const syllable = Math.abs(Math.sin(t * 9.5)) * (0.55 + 0.45 * Math.sin(t * 2.3 + 1));
+    const grain = 0.08 * Math.abs(Math.sin(t * 57));
+    return Math.min(1, 0.06 + 0.75 * syllable + grain);
+  }
+  var track = (n) => Array.from({ length: n }, (_, i) => loudness(i * 0.09));
+  var ACTIONS = ["stop", "retry", "retake", "repolish", "skipPolish"];
+  function log(text) {
+    const el = document.getElementById("log");
+    if (el) el.textContent = text;
+  }
+  var Frame = class {
+    constructor(host) {
+      this.host = host;
+      this.modal = null;
+      this.ticker = 0;
+      this.switching = false;
+    }
+    show(state) {
+      this.switching = true;
+      this.modal?.close();
+      this.switching = false;
+      window.clearInterval(this.ticker);
+      Modal.host = this.host;
+      const deps = {
+        // A microphone that is always about to start: the page sets the phase itself.
+        recorders: () => ({ start: () => new Promise(() => {
+        }), stop: () => new Promise(() => {
+        }), release() {
+        }, level: () => 0, onError: null }),
+        transcriber: { transcribe: () => new Promise(() => {
+        }) },
+        terms: () => [],
+        polisher: { polish: () => new Promise(() => {
+        }) },
+        polishLevel: () => "light",
+        polishTerms: () => [],
+        capMs: CAP_MS,
+        clock: { now: () => Date.now(), every: () => () => {
+        } },
+        signal: () => {
+        },
+        awake: { hold() {
+        }, release() {
+        } }
+      };
+      const editor = { getCursor: () => ({ line: 0, ch: 0 }), getLine: () => "", transaction() {
+      }, focus() {
+      } };
+      const file = new TFile(NOTE);
+      const modal = new DictateModal(new App(), { editor, ctx: { file, editor }, file }, deps, 12, () => {
+        if (this.switching) return;
+        log("Closed: the take is thrown away. Opening it again\u2026");
+        window.setTimeout(() => this.show(state), 900);
+      });
+      this.modal = modal;
+      modal.open();
+      const inside = modal;
+      if (state.phase.kind !== "starting") inside.levels = track(inside.levels.length);
+      let t = 0;
+      inside.session.level = () => loudness(t += 0.09);
+      for (const name of ACTIONS) {
+        inside.session[name] = (arg) => log(`Pressed: session.${name}(${arg ?? ""})`);
+      }
+      inside.render(state.phase);
+      const p = state.phase;
+      if (p.kind === "recording") {
+        const start = Date.now() - p.elapsedMs;
+        this.ticker = window.setInterval(() => {
+          let elapsedMs = Date.now() - start;
+          if (elapsedMs >= CAP_MS) elapsedMs = CAP_MS - 1e3;
+          inside.render({ kind: "recording", elapsedMs, warning: p.warning });
+        }, 200);
+      }
+    }
+  };
+  var frames = [new Frame(document.getElementById("phone-host")), new Frame(document.getElementById("desk-host"))];
+  var bar = document.getElementById("states");
+  var current = 0;
+  var slug = (s) => s.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/-$/, "");
+  function select(i) {
+    current = i;
+    history.replaceState(null, "", `#${slug(STATES[i])}`);
+    bar.querySelectorAll("button").forEach((b, j) => b.classList.toggle("is-on", j === i));
+    log("");
+    for (const f of frames) f.show(STATES[i]);
+  }
+  STATES.forEach((s, i) => {
+    bar.createEl("button", { text: s.name }).addEventListener("click", () => select(i));
+  });
+  document.getElementById("theme").addEventListener("click", (ev) => {
+    const dark = document.body.classList.toggle("theme-dark");
+    document.body.classList.toggle("theme-light", !dark);
+    ev.target.textContent = dark ? "Light" : "Dark";
+  });
+  document.addEventListener("keydown", (ev) => {
+    if (ev.target instanceof HTMLInputElement) return;
+    if (ev.key === "ArrowRight") select((current + 1) % STATES.length);
+    if (ev.key === "ArrowLeft") select((current - 1 + STATES.length) % STATES.length);
+  });
+  var [want, theme] = location.hash.slice(1).split("/");
+  if (theme === "light") document.getElementById("theme").click();
+  var found = STATES.findIndex((s) => slug(s) === want);
+  select(found >= 0 ? found : 1);
+})();
+
+</script>
+</body>
+</html>

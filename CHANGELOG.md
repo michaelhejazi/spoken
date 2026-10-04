@@ -7,6 +7,26 @@ GitHub release with `main.js`, `manifest.json` and `styles.css` attached.
 
 ## [Unreleased]
 
+### Changed
+
+- The sheet, redesigned. A drag handle and one quiet header line: a status
+  pill (Recording, Cleaning, Polishing, Ready, Not cleaned) and the note's
+  name. One hero and one primary action per state: while recording, the wave
+  full width with the timer small above it, Stop full width and Cancel as
+  text; Cleaning and Polishing keep that layout with the wave frozen and
+  shimmering; Ready shows the words on the sheet itself, words and time
+  under them, a compact Off · Light · Full control in place of the links,
+  then Insert full width with Discard and Retake as text; Not cleaned shows
+  the message with Try again. The sheet keeps one height in every state and
+  fades between them. Obsidian's close button is hidden inside the sheet;
+  Escape, the backdrop and Cancel still close it.
+
+### Added
+
+- `design/playground/`, a page that draws the real sheet in every state,
+  phone and desktop, light and dark (`npm run playground`). It replaces
+  `design/dictate-sheet.html`.
+
 ## [0.5.0] - 2026-10-02
 
 ### Added

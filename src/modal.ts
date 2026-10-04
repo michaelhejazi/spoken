@@ -1,6 +1,11 @@
-// The sheet: an Obsidian Modal, which is a bottom sheet on a phone. It draws
-// the session's phase (design/dictate-sheet.html has all seven) and forwards
-// the buttons. Words land only on Insert; any other way out throws the take away.
+// The sheet: an Obsidian Modal, drawn as a bottom sheet on a phone. It draws
+// the session's phase (design/playground renders every one) and forwards the
+// buttons. Words land only on Insert; any other way out throws the take away.
+//
+// Every state has the same frame: a handle, one header line (a status pill and
+// the note's name), one hero, then a footer of at most one primary button and
+// a row of text buttons pinned to the bottom of a fixed-height sheet, so a
+// state change swaps the hero without anything around it moving.
 
 import { App, Editor, MarkdownFileInfo, MarkdownView, Modal, Notice, TFile } from "obsidian";
 import { insertAtCursor } from "./insert";
@@ -13,7 +18,10 @@ export interface Target {
 	file: TFile;
 }
 
-const BARS = 46;
+const BARS = 48;
+
+type Pill = "recording" | "amber" | "quiet" | "busy" | "error";
+type Quiet = [text: string, fn: () => void, danger?: boolean];
 
 export class DictateModal extends Modal {
 	private readonly session: DictationSession;
@@ -21,7 +29,7 @@ export class DictateModal extends Modal {
 	private shownKind: string | null = null;
 	private shownWarning = false;
 	private clockEl: HTMLElement | null = null;
-	private hintEl: HTMLElement | null = null;
+	private captionEl: HTMLElement | null = null;
 	private canvas: HTMLCanvasElement | null = null;
 	private levels: number[] = new Array<number>(BARS).fill(0);
 	private frame = 0;
@@ -41,6 +49,7 @@ export class DictateModal extends Modal {
 
 	onOpen(): void {
 		this.modalEl.addClass("spoken-modal");
+		this.hideChrome();
 		this.session.onChange((p) => this.render(p));
 		this.render(this.session.phase);
 		void this.session.record();
@@ -62,6 +71,18 @@ export class DictateModal extends Modal {
 		return this.target.file;
 	}
 
+	/**
+	 * Obsidian's own close button and empty title are hidden inside this modal
+	 * only: Cancel, Discard, Escape and the backdrop still close it. They are
+	 * found as whatever in the modal is not the content, so no Obsidian class
+	 * name is relied on (1.13 renamed the close button's).
+	 */
+	private hideChrome(): void {
+		for (const child of Array.from(this.modalEl.children)) {
+			if (child !== this.contentEl && !child.contains(this.contentEl)) child.addClass("spoken-chrome");
+		}
+	}
+
 	private render(p: Phase): void {
 		if (p.kind === "closed") return;
 		const warning = p.kind === "recording" && p.warning;
@@ -72,158 +93,149 @@ export class DictateModal extends Modal {
 		this.shownKind = p.kind;
 		this.shownWarning = warning;
 		this.stopWave();
-		this.clockEl = this.hintEl = null;
+		this.clockEl = this.captionEl = null;
 		this.canvas = null;
 
 		const el = this.contentEl;
 		el.empty();
 		el.addClass("spoken");
+		el.createDiv({ cls: "spoken-handle" });
+		const head = el.createDiv({ cls: "spoken-head" });
+		const body = el.createDiv({ cls: "spoken-body" });
+		const foot = el.createDiv({ cls: "spoken-foot" });
 		switch (p.kind) {
 			case "unsupported":
-				this.head(el, "quiet", "Can't record");
-				el.createDiv({ cls: "spoken-err", text: p.message });
-				this.actions(el, [["Close", "quiet", () => this.close()]]);
+				this.head(head, "error", "Can't record");
+				this.message(body, p.message);
+				this.foot(foot, ["Close", () => this.close()], []);
 				break;
 			case "starting":
-				this.head(el, "quiet", "Waiting for the microphone…");
-				this.clock(el, "0:00", this.cap(), false);
-				this.wave(el, false);
-				this.hint(el, "Allow the microphone if Obsidian asks.", false);
-				this.actions(el, [["Cancel", "quiet", () => this.close()]]);
+				this.head(head, "busy", "Starting");
+				this.stage(body, "0:00", true, false, false, "Allow the microphone if Obsidian asks.");
+				this.foot(foot, null, [["Cancel", () => this.close()]]);
+				this.drawWave(false);
 				break;
 			case "recording":
-				this.head(el, p.warning ? "amber" : "", "Recording");
-				this.clock(el, fmt(p.elapsedMs), this.cap(), p.warning);
-				this.wave(el, false);
-				this.hint(el, "", p.warning);
-				this.actions(el, [
-					["Cancel", "quiet", () => this.close()],
-					["Stop", "primary", () => void this.session.stop()],
-				]);
+				this.head(head, p.warning ? "amber" : "recording", "Recording");
+				this.stage(body, fmt(p.elapsedMs), true, p.warning, false, "");
+				this.foot(foot, ["Stop", () => void this.session.stop()], [["Cancel", () => this.close()]]);
 				this.updateRecording(p);
 				this.startWave();
 				break;
 			case "cleaning":
-				this.head(el, "quiet", "Cleaning up…", true);
-				this.clock(el, fmt(p.durationMs), null, false).addClass("is-faint");
-				this.wave(el, true);
-				this.hint(el, p.terms === null ? "Record and clean" : `Record and clean · biased with ${p.terms} ${plural(p.terms, "term")}`, false);
-				this.actions(el, [["Cancel", "quiet", () => this.close()]]);
+				this.head(head, "busy", "Cleaning");
+				this.stage(body, fmt(p.durationMs), false, false, true, p.terms === null ? "Sending the take" : `Biased with ${p.terms} ${plural(p.terms, "term")}`);
+				this.foot(foot, null, [["Cancel", () => this.close()]]);
 				this.drawWave(true);
 				break;
 			case "polishing":
-				this.head(el, "quiet", "Polishing…", true);
-				this.clock(el, fmt(p.durationMs), null, false).addClass("is-faint");
-				this.wave(el, true);
-				this.hint(el, `${POLISH_LEVELS[p.level]} polish · names from the terms note`, false);
-				this.actions(el, [
-					["Cancel", "quiet", () => this.close()],
-					["Skip", "quiet", () => this.session.skipPolish()],
+				this.head(head, "busy", "Polishing");
+				this.stage(body, fmt(p.durationMs), false, false, true, `${POLISH_LEVELS[p.level]} polish · names from the terms note`);
+				this.foot(foot, null, [
+					["Cancel", () => this.close()],
+					["Skip", () => this.session.skipPolish()],
 				]);
 				this.drawWave(true);
 				break;
 			case "ready": {
-				this.head(el, "quiet", "Ready");
-				el.createDiv({ cls: "spoken-text", text: p.text });
-				const meta = el.createDiv({ cls: "spoken-meta" });
-				meta.createSpan({ text: `${words(p.text)} ${plural(words(p.text), "word")} · ${fmt(p.durationMs)} · ${polishLabel(p.polish)}` });
+				this.head(head, "quiet", "Ready");
+				body.createDiv({ cls: "spoken-text", text: p.text });
+				const meta = body.createDiv({ cls: "spoken-meta" });
+				meta.createSpan({ cls: "spoken-facts", text: `${words(p.text)} ${plural(words(p.text), "word")} · ${fmt(p.durationMs)}` });
 				if (!p.targetGone) {
-					const links = meta.createSpan({ cls: "spoken-links" });
-					// The other levels for this take: each re-polishes the kept transcript.
-					for (const level of otherLevels(p.polish)) {
-						this.link(links, POLISH_LEVELS[level], () => void this.session.repolish(level));
-					}
-					this.link(links, "Retake", () => void this.session.retake());
-					if (!p.polish.ran) el.createDiv({ cls: "spoken-polish-note", text: `Polish did not run: ${p.polish.why}. This is the transcript as heard.` });
-					this.actions(el, [
-						["Discard", "quiet", () => this.close()],
-						["Insert", "primary", () => this.insert(p.text)],
+					this.levelControl(meta, selectedLevel(p.polish));
+					if (!p.polish.ran) body.createDiv({ cls: "spoken-note", text: `Polish did not run: ${p.polish.why}. This is the transcript as heard.` });
+					this.foot(foot, ["Insert", () => this.insert(p.text)], [
+						["Discard", () => this.close()],
+						["Retake", () => void this.session.retake()],
 					]);
 				} else {
-					el.createDiv({ cls: "spoken-err", text: `${this.target.file.basename} is no longer open for editing, so the words weren't inserted anywhere else. Copy them, or discard them.` });
-					this.actions(el, [
-						["Discard", "quiet", () => this.close()],
-						["Copy", "primary", () => void this.copy(p.text)],
-					]);
+					body.createDiv({ cls: ["spoken-note", "is-error"], text: `${this.target.file.basename} is no longer open for editing, so the words weren't inserted anywhere else. Copy them, or discard them.` });
+					this.foot(foot, ["Copy", () => void this.copy(p.text)], [["Discard", () => this.close()]]);
 				}
 				break;
 			}
-			case "failed": {
-				this.head(el, "quiet", "Not cleaned");
-				this.clock(el, fmt(p.durationMs), null, false).addClass("is-faint");
-				const err = el.createDiv({ cls: "spoken-err", text: p.message });
-				err.createEl("small", {
-					text: p.takeKept ? "Try again when you have signal, or discard it." : "Try again to record, or close.",
-				});
-				this.actions(el, [
-					["Discard", "quiet danger", () => this.close()],
-					["Try again", "primary", () => void this.session.retry()],
-				]);
+			case "failed":
+				this.head(head, "error", "Not cleaned");
+				this.message(body, p.message, p.takeKept ? "Try again when you have signal, or discard it." : "Try again to record, or close.");
+				this.foot(foot, ["Try again", () => void this.session.retry()], [["Discard", () => this.close(), true]]);
 				break;
-			}
+		}
+		// The body fades in on every change of state; ticks of the same state redraw in place.
+		body.addClass("is-entering");
+	}
+
+	/** One quiet line: a status pill on the left, the note's name on the right. */
+	private head(head: HTMLElement, pill: Pill, word: string): void {
+		const state = head.createDiv({ cls: ["spoken-pill", `is-${pill}`] });
+		state.createSpan({ cls: pill === "busy" ? "spoken-spin" : "spoken-dot" });
+		state.createSpan({ text: word });
+		head.createDiv({ cls: "spoken-into", text: this.target.file.basename });
+	}
+
+	/** Recording's hero, kept through Cleaning and Polishing: the timer, the wave, one caption. */
+	private stage(body: HTMLElement, now: string, cap: boolean, amber: boolean, frozen: boolean, caption: string): void {
+		const stage = body.createDiv({ cls: "spoken-stage" });
+		const clock = stage.createDiv({ cls: ["spoken-clock", ...(amber ? ["is-amber"] : []), ...(frozen ? ["is-faint"] : [])] });
+		this.clockEl = clock.createSpan({ cls: "spoken-now", text: now });
+		if (cap) clock.createSpan({ cls: "spoken-cap", text: ` / ${fmt(this.capMs)}` });
+		this.canvas = stage.createEl("canvas", { cls: ["spoken-wave", ...(frozen ? ["is-frozen"] : [])] });
+		this.captionEl = stage.createDiv({ cls: ["spoken-caption", ...(amber ? ["is-amber"] : [])], text: caption });
+	}
+
+	private message(body: HTMLElement, text: string, then?: string): void {
+		const box = body.createDiv({ cls: "spoken-message" });
+		box.createDiv({ cls: "spoken-message-text", text });
+		if (then) box.createDiv({ cls: "spoken-message-then", text: then });
+	}
+
+	/**
+	 * At most one full-width primary button, then the quiet ones as text in one
+	 * row. Without a primary, its room is kept, so Cancel stays where it was.
+	 */
+	private foot(foot: HTMLElement, primary: [string, () => void] | null, quiet: Quiet[]): void {
+		if (primary) {
+			const b = foot.createEl("button", { cls: ["spoken-primary", "mod-cta"], text: primary[0] });
+			b.addEventListener("click", primary[1]);
+		} else {
+			foot.createDiv({ cls: "spoken-primary-room" });
+		}
+		if (!quiet.length) return;
+		const row = foot.createDiv({ cls: "spoken-quiet-row" });
+		for (const [text, fn, danger] of quiet) {
+			const b = row.createEl("button", { cls: ["spoken-quiet", ...(danger ? ["is-danger"] : [])], text });
+			b.addEventListener("click", fn);
 		}
 	}
 
-	private head(el: HTMLElement, dot: string, label: string, spinning = false): void {
-		const head = el.createDiv({ cls: "spoken-head" });
-		const state = head.createDiv({ cls: "spoken-state" });
-		if (spinning) state.createSpan({ cls: "spoken-spin" });
-		else state.createSpan({ cls: ["spoken-dot", ...(dot ? [`is-${dot}`] : [])] });
-		state.createSpan({ text: label });
-		// Room for Obsidian's close button, which sits over this end of the row (styles.css).
-		const into = head.createDiv({ cls: ["spoken-into", "spoken-beside-close"], text: "into " });
-		into.createEl("b", { text: this.target.file.basename });
-	}
-
-	private link(el: HTMLElement, text: string, fn: () => void): void {
-		const a = el.createEl("a", { cls: "spoken-link", text, href: "#" });
-		a.addEventListener("click", (ev) => {
-			ev.preventDefault();
-			fn();
-		});
-	}
-
-	private clock(el: HTMLElement, now: string, cap: string | null, amber: boolean): HTMLElement {
-		const clock = el.createDiv({ cls: ["spoken-clock", ...(amber ? ["is-amber"] : [])] });
-		this.clockEl = clock.createSpan({ cls: "spoken-big", text: now });
-		if (cap) clock.createSpan({ cls: "spoken-cap", text: `/ ${cap}` });
-		return clock;
-	}
-
-	private hint(el: HTMLElement, text: string, amber: boolean): void {
-		this.hintEl = el.createDiv({ cls: ["spoken-hint", ...(amber ? ["is-amber"] : [])], text });
-	}
-
-	private actions(el: HTMLElement, buttons: Array<[string, string, () => void]>): void {
-		const row = el.createDiv({ cls: "spoken-actions" });
-		for (const [text, kind, fn] of buttons) {
-			const cls = ["spoken-btn", ...kind.split(" ").map((k) => `is-${k}`)];
-			if (kind.includes("primary")) cls.push("mod-cta");
-			const b = row.createEl("button", { text, cls });
-			b.addEventListener("click", fn);
+	/** Off · Light · Full: the level this take shows, and the others one tap away (each re-polishes the kept transcript). */
+	private levelControl(meta: HTMLElement, current: PolishLevel | null): void {
+		const seg = meta.createDiv({ cls: "spoken-seg", attr: { role: "group", "aria-label": "Polish" } });
+		for (const level of Object.keys(POLISH_LEVELS) as PolishLevel[]) {
+			const on = level === current;
+			const b = seg.createEl("button", {
+				cls: ["spoken-seg-item", ...(on ? ["is-active"] : [])],
+				text: POLISH_LEVELS[level],
+				attr: { "aria-pressed": on ? "true" : "false" },
+			});
+			b.addEventListener("click", () => {
+				if (!on) void this.session.repolish(level);
+			});
 		}
 	}
 
 	private updateRecording(p: Extract<Phase, { kind: "recording" }>): void {
 		this.clockEl?.setText(fmt(p.elapsedMs));
-		if (!this.hintEl) return;
+		if (!this.captionEl) return;
 		if (p.warning) {
 			const left = Math.max(0, Math.ceil((this.capMs - p.elapsedMs) / 1000));
-			this.hintEl.setText(`${left} ${plural(left, "second")} left`);
+			this.captionEl.setText(`${left} ${plural(left, "second")} left`);
 		} else {
-			this.hintEl.setText(`Names and terms: ${this.termCount} · Tap Stop when you're done`);
+			this.captionEl.setText(`Names and terms: ${this.termCount}`);
 		}
 	}
 
-	private cap(): string {
-		return fmt(this.capMs);
-	}
-
 	// The wave: a canvas of recent loudness, so nothing is styled inline.
-
-	private wave(el: HTMLElement, frozen: boolean): void {
-		this.canvas = el.createEl("canvas", { cls: ["spoken-wave", ...(frozen ? ["is-frozen"] : [])] });
-	}
 
 	private startWave(): void {
 		const step = (t: number) => {
@@ -256,11 +268,17 @@ export class DictateModal extends Modal {
 		g.setTransform(ratio, 0, 0, ratio, 0, 0);
 		g.clearRect(0, 0, w, h);
 		g.fillStyle = getComputedStyle(canvas).color;
-		const bar = 3, gap = 3, total = BARS * bar + (BARS - 1) * gap;
-		const x0 = Math.max(0, (w - total) / 2);
+		// Full width: the bars share it, with gaps as wide as the bars.
+		const pitch = w / BARS, bar = Math.max(2, pitch * 0.5);
 		this.levels.forEach((v, i) => {
-			const bh = Math.max(4, Math.min(h, (frozen ? 0.15 + 0.5 * v : 0.08 + v) * h));
-			g.fillRect(x0 + i * (bar + gap), (h - bh) / 2, bar, bh);
+			const bh = Math.max(bar, Math.min(h, (frozen ? 0.12 + 0.45 * v : 0.06 + v) * h));
+			const x = i * pitch + (pitch - bar) / 2, y = (h - bh) / 2, r = bar / 2;
+			// A pill per bar: a rectangle with round ends.
+			g.beginPath();
+			g.arc(x + r, y + r, r, Math.PI, 0);
+			g.arc(x + r, y + bh - r, r, 0, Math.PI);
+			g.closePath();
+			g.fill();
 		});
 	}
 
@@ -295,17 +313,9 @@ export class DictateModal extends Modal {
 	}
 }
 
-/** What the meta line says ran: "Light polish", "Polish off", or "Not polished" when it fell back. */
-export function polishLabel(p: Polished): string {
-	if (!p.ran) return "Not polished";
-	return p.level === "off" ? "Polish off" : `${POLISH_LEVELS[p.level]} polish`;
-}
-
-/** The levels offered on the Ready card: all but the one that ran; all of Light and Full when none did. */
-export function otherLevels(p: Polished): PolishLevel[] {
-	const all = Object.keys(POLISH_LEVELS) as PolishLevel[];
-	if (!p.ran) return all.filter((l) => l !== "off");
-	return all.filter((l) => l !== p.level);
+/** The segment lit on the Ready sheet: the level that ran, or none when Polish fell back to the transcript. */
+export function selectedLevel(p: Polished): PolishLevel | null {
+	return p.ran ? p.level : null;
 }
 
 function fmt(ms: number): string {

@@ -69,7 +69,7 @@ After the transcript comes back, Spoken makes **a second call on your key**: a f
 
 Polish never adds, drops, answers or obeys: if you ask a question or say "ignore that" while dictating, those are your words, polished like the rest. Spoken checks the answer before showing it (the word count within 10% of the transcript for Light and 25% for Full, no line that reads as a reply to you, no name you never said). If the answer fails a check, or Polish errors or takes more than 30 seconds, you get the transcript as heard and one quiet line saying why. Skip does the same while it runs.
 
-The Ready card says which level ran and offers the others for that take: choosing one re-polishes the same transcript without recording or transcribing again. The transcript is kept only until Insert or Discard and is never written anywhere.
+On the Ready sheet, a small Off · Light · Full control shows which level ran; choosing another re-polishes the same transcript without recording or transcribing again. The transcript is kept only until Insert or Discard and is never written anywhere.
 
 ## Settings
 

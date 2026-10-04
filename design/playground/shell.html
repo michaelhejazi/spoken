@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spoken — the sheet, every state</title>
+<!-- Built by `npm run playground` from design/playground/shell.html; edit that, not index.html. -->
+<style>
+/* ------------------------------------------------------------------
+   Obsidian's own variables, approximating the default theme, so the
+   plugin's styles.css (inlined below, unchanged) previews outside the
+   app. Inside Obsidian the same names come from whatever theme is on.
+   ------------------------------------------------------------------ */
+body {
+	--font-interface: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, system-ui, sans-serif;
+	--font-text: var(--font-interface);
+	--font-ui-smaller: 12px; --font-ui-small: 13px; --font-ui-medium: 15px; --font-ui-large: 20px;
+	--font-normal: 400; --font-medium: 500; --font-semibold: 600; --font-bold: 700;
+	--size-4-1: 4px; --size-4-2: 8px; --size-4-3: 12px; --size-4-4: 16px; --size-4-5: 20px;
+	--size-4-6: 24px; --size-4-8: 32px; --size-4-12: 48px;
+	--radius-s: 4px; --radius-m: 8px; --radius-l: 12px; --radius-xl: 16px;
+	--input-height: 30px;
+}
+.theme-dark {
+	--background-primary: #1e1e1e;
+	--background-secondary: #262626;
+	--background-modifier-border: #363636;
+	--background-modifier-hover: rgba(255, 255, 255, 0.075);
+	--interactive-normal: #2a2a2a;
+	--interactive-accent: #7f6df2;
+	--interactive-accent-hover: #8a7bf5;
+	--text-normal: #dadada;
+	--text-muted: #b3b3b3;
+	--text-faint: #666666;
+	--text-on-accent: #ffffff;
+	--text-error: #fb464c;
+	--color-red: #fb464c;
+	--color-orange: #e9973f;
+	--color-green: #44cf6e;
+	--shadow-l: 0 8px 40px rgba(0, 0, 0, 0.5);
+	--page: #0d0d0d; --page-text: #cfcfcf; --chrome: #1a1a1a;
+}
+.theme-light {
+	--background-primary: #ffffff;
+	--background-secondary: #f6f6f6;
+	--background-modifier-border: #e0e0e0;
+	--background-modifier-hover: rgba(0, 0, 0, 0.075);
+	--interactive-normal: #ffffff;
+	--interactive-accent: #7852ee;
+	--interactive-accent-hover: #6a45d8;
+	--text-normal: #222222;
+	--text-muted: #5c5c5c;
+	--text-faint: #ababab;
+	--text-on-accent: #ffffff;
+	--text-error: #e93147;
+	--color-red: #e93147;
+	--color-orange: #ec7500;
+	--color-green: #08b94e;
+	--shadow-l: 0 8px 40px rgba(0, 0, 0, 0.18);
+	--page: #e8e8ea; --page-text: #333333; --chrome: #f0f0f2;
+}
+
+/* Obsidian's base button and modal, approximately. */
+button {
+	font-family: var(--font-interface);
+	font-size: var(--font-ui-small);
+	height: var(--input-height);
+	padding: 0 var(--size-4-3);
+	border: 0;
+	border-radius: var(--radius-s);
+	background: var(--interactive-normal);
+	color: var(--text-normal);
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+button.mod-cta { background: var(--interactive-accent); color: var(--text-on-accent); }
+button.mod-cta:hover { background: var(--interactive-accent-hover); }
+.modal-container { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 5; }
+.modal-bg { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.5); }
+.modal {
+	position: relative; box-sizing: border-box;
+	width: var(--dialog-width, 560px); max-width: 80vw; max-height: 85%;
+	padding: var(--size-4-4); display: flex; flex-direction: column;
+	background: var(--background-primary); color: var(--text-normal);
+	border: 1px solid var(--background-modifier-border); border-radius: var(--radius-l);
+	box-shadow: var(--shadow-l); font-family: var(--font-interface);
+}
+.modal-close-button { position: absolute; top: 8px; right: 8px; width: 28px; height: 28px; display: grid; place-items: center;
+	font-size: 20px; color: var(--text-muted); cursor: pointer; border-radius: var(--radius-s); }
+.modal-title { font-weight: var(--font-semibold); }
+.is-phone .modal-container { align-items: flex-end; }
+.is-phone .modal { width: 100%; max-width: 100%; border-radius: var(--radius-xl) var(--radius-xl) 0 0; border-width: 1px 0 0; }
+.is-phone .modal-close-button { width: 44px; height: 44px; border-radius: 50%; top: -6px; right: 12px; background: var(--background-secondary); }
+
+/* ---- the page ---- */
+html, body { margin: 0; }
+body { background: var(--page); color: var(--page-text); font-family: var(--font-interface); padding: 20px 24px 40px; }
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin-bottom: 16px; }
+h1 { font-size: 15px; font-weight: 600; margin: 0; }
+#states { display: flex; flex-wrap: wrap; gap: 4px; }
+#states button, #theme { height: 28px; border-radius: 14px; box-shadow: none; border: 1px solid var(--background-modifier-border);
+	background: var(--chrome); color: var(--page-text); font-size: 12px; cursor: pointer; }
+#states button.is-on { background: var(--interactive-accent); color: var(--text-on-accent); border-color: transparent; }
+#log { min-height: 18px; font-size: 12px; opacity: 0.75; margin: 0 0 12px; }
+.frames { display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap; }
+.label { font-size: 12px; opacity: 0.7; margin: 0 0 8px; }
+
+/* The phone: 390×844 CSS px, Obsidian mobile's note behind the sheet. */
+.phone { width: 390px; height: 844px; border-radius: 44px; overflow: hidden; position: relative;
+	background: var(--background-primary); color: var(--text-normal);
+	outline: 10px solid #111; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35); margin: 10px; }
+.desk { width: 880px; height: 640px; border-radius: 10px; overflow: hidden; position: relative;
+	background: var(--background-primary); color: var(--text-normal);
+	border: 1px solid var(--background-modifier-border); box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25); }
+.statusbar { height: 44px; display: flex; justify-content: space-between; align-items: center; padding: 0 28px; font-size: 13px; font-weight: 600; }
+.titlebar { display: flex; justify-content: space-between; align-items: center; padding: 6px 16px; font-size: 14px; color: var(--text-muted); }
+.titlebar b { color: var(--text-normal); }
+.note { padding: 12px 22px; font-size: 16px; line-height: 1.6; }
+.note h2 { font-size: 24px; margin: 4px 0 12px; }
+.note p { margin: 0 0 12px; }
+.desk .ribbon { position: absolute; left: 0; top: 0; bottom: 0; width: 44px; background: var(--background-secondary); border-right: 1px solid var(--background-modifier-border); }
+.desk .side { position: absolute; left: 44px; top: 0; bottom: 0; width: 200px; background: var(--background-secondary); border-right: 1px solid var(--background-modifier-border); }
+.desk .note { position: absolute; left: 244px; right: 0; top: 0; padding: 48px 64px; }
+#toasts { position: fixed; top: 16px; right: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 10; }
+.toast { background: var(--background-secondary); color: var(--text-normal); border: 1px solid var(--background-modifier-border);
+	border-radius: 8px; padding: 10px 14px; font-size: 13px; box-shadow: var(--shadow-l); }
+</style>
+<style>
+/* STYLES.CSS */
+</style>
+</head>
+<body class="theme-dark">
+<header>
+	<h1>Spoken — the sheet, every state</h1>
+	<div id="states"></div>
+	<button id="theme">Light</button>
+</header>
+<p id="log"></p>
+<div class="frames">
+	<div>
+		<p class="label">Phone, 390 × 844</p>
+		<div class="phone is-mobile is-phone">
+			<div class="statusbar"><span>9:41</span><span>●●● ▮</span></div>
+			<div class="titlebar"><span>‹</span><b>Trail notes</b><span>⋯</span></div>
+			<div class="note">
+				<h2>Trail notes</h2>
+				<p>Walked the ridge loop before the call with Simin. The dental thing keeps coming back to the same question: who is the one customer this is for.</p>
+				<p>Notes from the onboarding calls, so far:</p>
+			</div>
+			<div id="phone-host"></div>
+		</div>
+	</div>
+	<div>
+		<p class="label">Desktop</p>
+		<div class="desk">
+			<div class="ribbon"></div><div class="side"></div>
+			<div class="note">
+				<h2>Trail notes</h2>
+				<p>Walked the ridge loop before the call with Simin. The dental thing keeps coming back to the same question: who is the one customer this is for.</p>
+				<p>Notes from the onboarding calls, so far:</p>
+			</div>
+			<div id="desk-host"></div>
+		</div>
+	</div>
+</div>
+<div id="toasts"></div>
+<script>
+/* PLAYGROUND.JS */
+</script>
+</body>
+</html>

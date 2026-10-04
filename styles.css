@@ -1,64 +1,115 @@
 /* Spoken — the sheet. Obsidian's own variables only, so it follows the theme.
-   design/dictate-sheet.html is the drawing this follows. */
+   design/playground renders every state of it from this file.
 
-.spoken-modal .modal-content.spoken {
-	padding-top: 4px;
+   Two text sizes (--font-ui-medium, --font-ui-small) plus the timer, the
+   4-point --size-4-* scale for every gap, --radius-l for every corner. */
+
+.modal.spoken-modal {
+	padding: 0;
+	border-radius: var(--radius-l);
+	--dialog-width: 440px;
+	overflow: hidden;
+}
+/* On a phone the modal is a bottom sheet: round only at the top. */
+.is-phone .modal.spoken-modal {
+	border-radius: var(--radius-l) var(--radius-l) 0 0;
+}
+/* Obsidian's close button and title, inside this modal only (src/modal.ts
+   marks them). Escape, the backdrop and Cancel still close it. */
+.modal.spoken-modal > .spoken-chrome {
+	display: none;
 }
 
+.modal.spoken-modal .modal-content.spoken {
+	display: flex;
+	flex-direction: column;
+	/* One height for every state, so a change of state never resizes the sheet. */
+	height: min(380px, 72vh);
+	padding: var(--size-4-2) var(--size-4-5) var(--size-4-4);
+	padding-bottom: calc(var(--size-4-4) + env(safe-area-inset-bottom, 0px));
+	font-size: var(--font-ui-medium);
+	overflow: hidden;
+}
+
+/* Only a sheet has a handle; a desktop or tablet dialog starts with its header. */
+.spoken-handle {
+	flex: none;
+	height: 0;
+	margin-bottom: var(--size-4-2);
+}
+.is-phone .spoken-handle {
+	width: 36px;
+	height: 4px;
+	margin: 0 auto var(--size-4-3);
+	border-radius: var(--radius-l);
+	background: var(--background-modifier-border);
+}
+
+/* The header: a status pill, and the note's name in the muted colour. */
 .spoken-head {
+	flex: none;
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	gap: 12px;
-	margin-bottom: 4px;
+	gap: var(--size-4-3);
+	min-height: 28px;
 }
-.spoken-state {
-	display: flex;
+.spoken-pill {
+	display: inline-flex;
 	flex: none;
 	align-items: center;
-	gap: 8px;
+	gap: var(--size-4-2);
+	height: 28px;
+	padding: 0 var(--size-4-3) 0 var(--size-4-2);
+	border-radius: var(--radius-l);
+	background: var(--background-secondary);
+	font-size: var(--font-ui-small);
 	font-weight: var(--font-semibold);
+	color: var(--text-normal);
 }
 .spoken-into {
-	font-size: var(--font-ui-small);
-	color: var(--text-muted);
+	min-width: 0;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
-	min-width: 0;
-}
-/* Obsidian draws the modal's close button (×) over the sheet's top-right corner,
-   level with this row: on a phone a raised 44 px circle reaching about 40 px in
-   from the content's edge. The note name stops 48 px short of that edge and a
-   long one ends in an ellipsis there, rather than running under the button. */
-.modal.spoken-modal .spoken-into.spoken-beside-close {
-	margin-inline-end: var(--size-4-12, 48px);
-}
-.spoken-into b {
-	color: var(--text-normal);
-	font-weight: var(--font-medium);
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
 }
 
 .spoken-dot {
-	width: 9px;
-	height: 9px;
+	width: 8px;
+	height: 8px;
 	flex: none;
 	border-radius: 50%;
-	background: var(--color-red);
-	box-shadow: 0 0 0 4px rgba(var(--color-red-rgb), 0.18);
-}
-.spoken-dot.is-amber {
-	background: var(--color-orange);
-	box-shadow: 0 0 0 4px rgba(var(--color-orange-rgb), 0.18);
-}
-.spoken-dot.is-quiet {
 	background: var(--text-faint);
-	box-shadow: none;
+}
+.spoken-pill.is-recording .spoken-dot {
+	background: var(--color-red);
+	animation: spoken-pulse 1.6s ease-in-out infinite;
+}
+.spoken-pill.is-amber {
+	color: var(--color-orange);
+}
+.spoken-pill.is-amber .spoken-dot {
+	background: var(--color-orange);
+	animation: spoken-pulse 0.8s ease-in-out infinite;
+}
+.spoken-pill.is-quiet .spoken-dot {
+	background: var(--color-green);
+}
+.spoken-pill.is-error .spoken-dot {
+	background: var(--text-error);
+}
+@keyframes spoken-pulse {
+	50% {
+		opacity: 0.35;
+	}
 }
 .spoken-spin {
-	width: 14px;
-	height: 14px;
+	width: 12px;
+	height: 12px;
 	flex: none;
+	box-sizing: border-box;
 	border-radius: 50%;
 	border: 2px solid var(--background-modifier-border);
 	border-top-color: var(--interactive-accent);
@@ -70,127 +121,221 @@
 	}
 }
 
+/* The hero's room: whatever is left between the header and the footer. */
+.spoken-body {
+	flex: 1;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+	padding-top: var(--size-4-4);
+}
+.spoken-body.is-entering {
+	animation: spoken-in 150ms ease-out;
+}
+@keyframes spoken-in {
+	from {
+		opacity: 0;
+	}
+}
+
+/* Recording, Cleaning and Polishing share this, so moving between them moves nothing. */
+.spoken-stage {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	align-items: stretch;
+	gap: var(--size-4-2);
+}
 .spoken-clock {
 	text-align: center;
-	margin: 18px 0 6px;
 	font-variant-numeric: tabular-nums;
-}
-.spoken-big {
-	font-size: 44px;
-	font-weight: 300;
-	line-height: 1;
+	font-size: var(--font-ui-large);
+	font-weight: var(--font-medium);
+	line-height: 1.2;
+	color: var(--text-normal);
 }
 .spoken-cap {
-	font-size: var(--font-ui-small);
 	color: var(--text-faint);
-	margin-left: 6px;
+	font-weight: var(--font-normal);
 }
-.spoken-clock.is-amber .spoken-big {
+.spoken-clock.is-amber .spoken-now {
 	color: var(--color-orange);
 }
-.spoken-clock.is-faint .spoken-big {
-	color: var(--text-faint);
+.spoken-clock.is-faint .spoken-now {
+	color: var(--text-muted);
 }
 
 /* The canvas draws in its own `color`. */
 .spoken-wave {
 	display: block;
 	width: 100%;
-	height: 54px;
-	margin: 10px 0 16px;
+	height: 96px;
 	color: var(--interactive-accent);
 }
+/* Waiting on Gemini: the last of the take, still, with light passing over it. */
 .spoken-wave.is-frozen {
 	color: var(--text-faint);
-	opacity: 0.6;
+	-webkit-mask-image: linear-gradient(100deg, rgba(0, 0, 0, 0.45) 30%, #000 50%, rgba(0, 0, 0, 0.45) 70%);
+	mask-image: linear-gradient(100deg, rgba(0, 0, 0, 0.45) 30%, #000 50%, rgba(0, 0, 0, 0.45) 70%);
+	-webkit-mask-size: 250% 100%;
+	mask-size: 250% 100%;
+	animation: spoken-shimmer 1.6s linear infinite;
 }
-
-.spoken-hint {
+@keyframes spoken-shimmer {
+	from {
+		-webkit-mask-position: 100% 0;
+		mask-position: 100% 0;
+	}
+	to {
+		-webkit-mask-position: 0 0;
+		mask-position: 0 0;
+	}
+}
+.spoken-caption {
+	min-height: 1.5em;
 	text-align: center;
 	font-size: var(--font-ui-small);
 	color: var(--text-muted);
-	margin: 0 0 16px;
 }
-.spoken-hint.is-amber {
+.spoken-caption.is-amber {
 	color: var(--color-orange);
 }
 
-.spoken-actions {
-	display: flex;
-	gap: 10px;
-	align-items: center;
-}
-.spoken-btn {
+/* Ready: the words on the sheet's own surface, scrolling inside it. */
+.spoken-text {
 	flex: 1;
-	min-height: 44px;
-	border-radius: var(--radius-m);
-	font-weight: var(--font-semibold);
+	min-height: 0;
+	overflow-y: auto;
+	font-family: var(--font-text);
+	font-size: var(--font-ui-medium);
+	line-height: 1.55;
+	white-space: pre-wrap;
+	user-select: text;
+	-webkit-user-select: text;
+	color: var(--text-normal);
+	/* Words scrolling out under the meta line fade rather than cut; the padding lets the last line clear the fade. */
+	padding-bottom: var(--size-4-4);
+	-webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - var(--size-4-6)), transparent);
+	mask-image: linear-gradient(to bottom, #000 calc(100% - var(--size-4-6)), transparent);
 }
-.spoken-btn.is-primary {
-	flex: 1.6;
+.spoken-meta {
+	flex: none;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--size-4-3);
+	padding-top: var(--size-4-3);
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+	font-variant-numeric: tabular-nums;
 }
-.spoken-btn.is-quiet:not(.mod-cta) {
-	background: transparent;
-	box-shadow: none;
-	border: 1px solid var(--background-modifier-border);
+.spoken-note {
+	flex: none;
+	padding-top: var(--size-4-2);
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
 }
-.spoken-btn.is-danger {
+.spoken-note.is-error {
 	color: var(--text-error);
 }
 
-/* The words: the whole take is readable, so the card scrolls rather than fading out. */
-.spoken-text {
-	border: 1px solid var(--background-modifier-border);
-	border-radius: var(--radius-m);
+/* Off · Light · Full. */
+.spoken-seg {
+	display: inline-flex;
+	flex: none;
+	padding: 2px;
+	gap: 2px;
+	border-radius: var(--radius-l);
 	background: var(--background-secondary);
-	padding: 12px 14px;
-	font-family: var(--font-text);
-	line-height: 1.55;
-	max-height: 40vh;
-	overflow-y: auto;
-	margin: 12px 0 8px;
-	white-space: pre-wrap;
-	user-select: text;
 }
-.spoken-meta {
-	display: flex;
-	flex-wrap: wrap;
-	justify-content: space-between;
-	gap: 4px 12px;
+.modal.spoken-modal button.spoken-seg-item {
+	height: 28px;
+	padding: 0 var(--size-4-3);
+	border: none;
+	border-radius: var(--radius-l);
+	background: transparent;
+	box-shadow: none;
 	font-size: var(--font-ui-small);
-	color: var(--text-faint);
-	margin: 0 2px 14px;
-}
-/* The other polish levels and Retake, as quiet links at the meta line's end. */
-.spoken-links {
-	display: flex;
-	gap: 12px;
-}
-/* Polish fell back: said once, quietly, not as an error. */
-.spoken-polish-note {
-	font-size: var(--font-ui-small);
+	font-weight: var(--font-medium);
 	color: var(--text-muted);
-	margin: -8px 2px 14px;
+	cursor: pointer;
+	transition: background-color 150ms ease, color 150ms ease;
 }
-.spoken-link {
-	color: var(--text-muted);
-	text-decoration: underline;
-	text-underline-offset: 2px;
+.modal.spoken-modal button.spoken-seg-item.is-active {
+	background: var(--background-primary);
+	color: var(--text-normal);
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
 }
 
-.spoken-err {
-	border: 1px solid var(--background-modifier-border);
-	border-left: 3px solid var(--text-error);
-	border-radius: var(--radius-s);
-	padding: 10px 12px;
+/* Failed and Unsupported: the message is the hero. */
+.spoken-message {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	gap: var(--size-4-2);
+	text-align: center;
 	line-height: 1.5;
-	margin: 14px 0 16px;
-	background: var(--background-secondary);
 }
-.spoken-err small {
-	display: block;
+.spoken-message-text {
+	color: var(--text-normal);
+}
+.spoken-message-then {
+	font-size: var(--font-ui-small);
 	color: var(--text-muted);
-	margin-top: 4px;
+}
+
+/* The footer: one primary action full width, the rest as text beneath it. */
+.spoken-foot {
+	flex: none;
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-1);
+	padding-top: var(--size-4-4);
+}
+.spoken-primary-room {
+	height: 48px;
+}
+.modal.spoken-modal button.spoken-primary {
+	width: 100%;
+	height: 48px;
+	border-radius: var(--radius-l);
+	font-size: var(--font-ui-medium);
+	font-weight: var(--font-semibold);
+	cursor: pointer;
+}
+.spoken-quiet-row {
+	display: flex;
+	justify-content: center;
+	gap: var(--size-4-2);
+}
+.modal.spoken-modal button.spoken-quiet {
+	height: 40px;
+	padding: 0 var(--size-4-4);
+	border: none;
+	border-radius: var(--radius-l);
+	background: transparent;
+	box-shadow: none;
+	font-size: var(--font-ui-medium);
+	font-weight: var(--font-medium);
+	color: var(--text-muted);
+	cursor: pointer;
+}
+.modal.spoken-modal button.spoken-quiet:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+.modal.spoken-modal button.spoken-quiet.is-danger {
+	color: var(--text-error);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.spoken-body.is-entering,
+	.spoken-wave.is-frozen,
+	.spoken-pill .spoken-dot {
+		animation: none;
+	}
 }
 
 /* Settings: the Check key result and the steps to a key, both inside the key row's description. */

@@ -26,3 +26,6 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npm run build
+      # The playground is committed; a fresh build must match it.
+      - run: npm run playground
+      - run: git diff --exit-code design/playground/index.html

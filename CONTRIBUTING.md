@@ -13,9 +13,11 @@ npm ci
 npm run build    # type-checks src/, then bundles it into main.js
 npm test         # type-checks the tests, then runs them with Vitest
 npm run lint     # eslint-plugin-obsidianmd, the community directory's checks
+npm run playground  # rebuilds design/playground/index.html from the sheet's code
 ```
 
-CI runs all three on every push and pull request
+CI runs all four on every push and pull request, and fails if the committed
+playground differs from a fresh build
 (`.github/workflows/ci.yml`). The tests need no device, no microphone and no
 network: the transcriber is tested against a fake that serves real HTTP on a
 local port (`test/fake-gemini.mjs`), and the
@@ -105,7 +107,7 @@ Please keep it that way.
 | `src/recorder.ts` | `MediaRecorder` over `getUserMedia`. It asks for Opus in WebM at 32 kbit/s where the platform offers it, and the recording's real MIME type is what gets sent. |
 | `src/signals.ts` | The three haptic patterns by name (`HAPTICS`), and the soft-tone fallback where vibration isn't felt. |
 | `src/wakelock.ts` | `ScreenWake`: keeps the screen on while the session is recording, asking again whenever the page is shown. |
-| `src/modal.ts` | The sheet, an Obsidian `Modal`. It draws the session's phase following `design/dictate-sheet.html`. |
+| `src/modal.ts` | The sheet, an Obsidian `Modal`. It draws the session's phase; `design/playground/` renders it in every state. |
 | `src/insert.ts`, `src/vocabulary.ts` | The spacing rule and the terms list. |
 
 Another way to transcribe, such as a hosted service, is another `Transcriber`
@@ -116,8 +118,20 @@ Everything the plugin creates is released when it closes: the microphone, the
 screen wake lock, the clock, the drawing loop and the listeners. Unloading the
 plugin closes any open sheet.
 
-`design/dictate-sheet.html` is the design the sheet was built from: each of
-its states in one page, open it in a browser. `docs/` holds the contract of
+`design/playground/index.html` is the sheet's design reference: one page, no
+network, that draws the real sheet in every state, in a phone frame
+(390 × 844) and at desktop width, light or dark. Open it in a browser; the bar
+switches state, the arrow keys step through them, and a state can be linked
+(`index.html#ready-long`, `#failed/light`). It is not a drawing: `npm run
+playground` bundles `src/modal.ts` against `design/playground/obsidian-stub.ts`
+(a stand-in for the few Obsidian APIs the sheet touches: `Modal`, `App`,
+`TFile`, `MarkdownView`, `Notice` and the DOM helpers Obsidian adds to every
+element) and inlines the real `styles.css`, with Obsidian's default theme
+variables approximated in `design/playground/shell.html`. The page is
+committed so a copy can be opened without building; edit `shell.html` or
+`main.ts` beside it, never `index.html`, and rebuild after any change to the
+sheet's code or `styles.css`.
+`docs/` holds the contract of
 the requests to Gemini, the notes for submitting to the community directory, and
 the README's screenshots (`docs/images/`).
 
