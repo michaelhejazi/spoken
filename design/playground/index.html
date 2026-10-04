@@ -104,7 +104,10 @@ h1 { font-size: 15px; font-weight: 600; margin: 0; }
 .frames { display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap; }
 .label { font-size: 12px; opacity: 0.7; margin: 0 0 8px; }
 
-/* The phone: 390×844 CSS px, Obsidian mobile's note behind the sheet. */
+/* The phone: 390×844 CSS px, Obsidian mobile's note behind the sheet.
+   The sheet's vh-based heights are taken from each frame, not the page. */
+.phone { --spoken-vh: 8.44px; }
+.desk { --spoken-vh: 6.4px; }
 .phone { width: 390px; height: 844px; border-radius: 44px; overflow: hidden; position: relative;
 	background: var(--background-primary); color: var(--text-normal);
 	outline: 10px solid #111; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35); margin: 10px; }
@@ -129,7 +132,9 @@ h1 { font-size: 15px; font-weight: 600; margin: 0; }
    design/playground renders every state of it from this file.
 
    Two text sizes (--font-ui-medium, --font-ui-small) plus the timer, the
-   4-point --size-4-* scale for every gap, --radius-l for every corner. */
+   4-point --size-4-* scale for every gap, --radius-l for every corner.
+   Heights are in --spoken-vh, the viewport's 1vh unless a page that draws the
+   sheet in a frame (design/playground) says otherwise. */
 
 .modal.spoken-modal {
 	padding: 0;
@@ -150,11 +155,36 @@ h1 { font-size: 15px; font-weight: 600; margin: 0; }
 .modal.spoken-modal .modal-content.spoken {
 	display: flex;
 	flex-direction: column;
-	/* One height for every state, so a change of state never resizes the sheet. */
-	height: min(380px, 72vh);
+	/* Starting, Recording, Cleaning and Polishing share one compact height, so
+	   moving between them moves nothing. */
+	--spoken-compact: min(380px, calc(72 * var(--spoken-vh, 1vh)));
+	height: var(--spoken-compact);
 	padding: var(--size-4-2) var(--size-4-5) var(--size-4-4);
 	padding-bottom: calc(var(--size-4-4) + env(safe-area-inset-bottom, 0px));
 	font-size: var(--font-ui-medium);
+	overflow: hidden;
+}
+
+/* Ready, Failed and Unsupported take the height their content needs, from
+   the compact one up to 70vh in a dialog and 85vh on a phone. */
+.modal.spoken-modal .modal-content.spoken.is-grown {
+	height: auto;
+	min-height: var(--spoken-compact);
+	max-height: calc(70 * var(--spoken-vh, 1vh));
+}
+.is-phone .modal.spoken-modal .modal-content.spoken.is-grown {
+	max-height: calc(85 * var(--spoken-vh, 1vh));
+}
+/* While the height changes: from the old height to the new, over 150 ms
+   (src/modal.ts sets both ends and takes this class off after). */
+.modal.spoken-modal .modal-content.spoken.is-sizing {
+	box-sizing: border-box;
+	height: var(--spoken-height);
+	min-height: 0;
+	max-height: none;
+	transition: height 150ms ease-out;
+}
+.spoken.is-sizing .spoken-body {
 	overflow: hidden;
 }
 
@@ -250,7 +280,7 @@ h1 { font-size: 15px; font-weight: 600; margin: 0; }
 
 /* The hero's room: whatever is left between the header and the footer. */
 .spoken-body {
-	flex: 1;
+	flex: 1 1 auto;
 	min-height: 0;
 	display: flex;
 	flex-direction: column;
@@ -300,9 +330,13 @@ h1 { font-size: 15px; font-weight: 600; margin: 0; }
 	height: 96px;
 	color: var(--interactive-accent);
 }
-/* Waiting on Gemini: the last of the take, still, with light passing over it. */
+/* Waiting on Gemini: the last of the take, still, with light passing over it.
+   The running step of the progress line carries the same light. */
 .spoken-wave.is-frozen {
 	color: var(--text-faint);
+}
+.spoken-wave.is-frozen,
+.spoken-step.is-running .spoken-step-bar {
 	-webkit-mask-image: linear-gradient(100deg, rgba(0, 0, 0, 0.45) 30%, #000 50%, rgba(0, 0, 0, 0.45) 70%);
 	mask-image: linear-gradient(100deg, rgba(0, 0, 0, 0.45) 30%, #000 50%, rgba(0, 0, 0, 0.45) 70%);
 	-webkit-mask-size: 250% 100%;
@@ -329,10 +363,12 @@ h1 { font-size: 15px; font-weight: 600; margin: 0; }
 	color: var(--color-orange);
 }
 
-/* Ready: the words on the sheet's own surface, scrolling inside it. */
+/* Ready: the words on the sheet's own surface, scrolling inside it, cut to
+   whole lines (src/modal.ts measures how many fit). */
 .spoken-text {
-	flex: 1;
+	flex: 1 1 auto;
 	min-height: 0;
+	max-height: var(--spoken-text-height, none);
 	overflow-y: auto;
 	font-family: var(--font-text);
 	font-size: var(--font-ui-medium);
@@ -341,10 +377,11 @@ h1 { font-size: 15px; font-weight: 600; margin: 0; }
 	user-select: text;
 	-webkit-user-select: text;
 	color: var(--text-normal);
-	/* Words scrolling out under the meta line fade rather than cut; the padding lets the last line clear the fade. */
-	padding-bottom: var(--size-4-4);
-	-webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - var(--size-4-6)), transparent);
-	mask-image: linear-gradient(to bottom, #000 calc(100% - var(--size-4-6)), transparent);
+}
+/* Only while there are more words below: the bottom edge fades. */
+.spoken-text.is-more {
+	-webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - var(--size-4-8)), transparent);
+	mask-image: linear-gradient(to bottom, #000 calc(100% - var(--size-4-8)), transparent);
 }
 .spoken-meta {
 	flex: none;
@@ -421,8 +458,40 @@ h1 { font-size: 15px; font-weight: 600; margin: 0; }
 	gap: var(--size-4-1);
 	padding-top: var(--size-4-4);
 }
-.spoken-primary-room {
+/* While waiting, the progress line stands where the primary would, at its height. */
+.spoken-progress {
 	height: 48px;
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+}
+.spoken-step {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-2);
+}
+.spoken-step-bar {
+	height: 4px;
+	border-radius: var(--radius-l);
+	background: var(--background-modifier-border);
+}
+.spoken-step.is-done .spoken-step-bar {
+	background: var(--interactive-accent);
+}
+.spoken-step.is-running .spoken-step-bar {
+	background: var(--text-faint);
+}
+.spoken-step-label {
+	text-align: center;
+	font-size: var(--font-ui-small);
+	color: var(--text-faint);
+}
+.spoken-step.is-done .spoken-step-label {
+	color: var(--text-muted);
+}
+.spoken-step.is-running .spoken-step-label {
+	color: var(--text-normal);
 }
 .modal.spoken-modal button.spoken-primary {
 	width: 100%;
@@ -460,8 +529,12 @@ h1 { font-size: 15px; font-weight: 600; margin: 0; }
 @media (prefers-reduced-motion: reduce) {
 	.spoken-body.is-entering,
 	.spoken-wave.is-frozen,
+	.spoken-step.is-running .spoken-step-bar,
 	.spoken-pill .spoken-dot {
 		animation: none;
+	}
+	.modal.spoken-modal .modal-content.spoken.is-sizing {
+		transition: none;
 	}
 }
 
@@ -561,6 +634,12 @@ h1 { font-size: 15px; font-weight: 600; margin: 0; }
   proto.removeClass = function(...cls) {
     this.classList.remove(...cls);
   };
+  proto.toggleClass = function(cls, value) {
+    for (const c of Array.isArray(cls) ? cls : [cls]) this.classList.toggle(c, value);
+  };
+  proto.setCssProps = function(props) {
+    for (const [k, v] of Object.entries(props)) this.style.setProperty(k, v);
+  };
   var App = class {
   };
   var TFile = class {
@@ -651,6 +730,10 @@ h1 { font-size: 15px; font-weight: 600; margin: 0; }
     light: 0.1,
     full: 0.25
   };
+  var WORD_FLOOR = {
+    light: 1,
+    full: 2
+  };
   var WHY_UNREADABLE = "Gemini's answer wasn't a transcript";
   var WHY_EMPTY = "Gemini's answer was empty";
   var WHY_REPLY = "Gemini's answer read as a reply, not the transcript";
@@ -705,7 +788,7 @@ h1 { font-size: 15px; font-weight: 600; margin: 0; }
     if (!polished.trim()) return WHY_EMPTY;
     const before = countWords(raw);
     const after2 = countWords(polished);
-    if (Math.abs(after2 - before) > WORD_DRIFT[level] * before) return whyWords(before, after2);
+    if (Math.abs(after2 - before) > Math.max(WORD_FLOOR[level], WORD_DRIFT[level] * before)) return whyWords(before, after2);
     if (polished.split("\n").some((line) => looksLikeReply(line, raw))) return WHY_REPLY;
     const name = newName(raw, polished, terms);
     if (name) return whyNewName(name);
@@ -952,6 +1035,8 @@ h1 { font-size: 15px; font-weight: 600; margin: 0; }
 
   // src/modal.ts
   var BARS = 48;
+  var GROWN = /* @__PURE__ */ new Set(["ready", "failed", "unsupported"]);
+  var SIZING_MS = 200;
   var DictateModal = class extends Modal {
     constructor(app, target, deps, termCount, onGone) {
       super(app);
@@ -963,20 +1048,29 @@ h1 { font-size: 15px; font-weight: 600; margin: 0; }
       this.clockEl = null;
       this.captionEl = null;
       this.canvas = null;
+      this.textEl = null;
+      this.sizing = 0;
       this.levels = new Array(BARS).fill(0);
       this.frame = 0;
       this.lastSample = 0;
+      this.onResize = () => {
+        if (this.textEl) this.settle(0);
+      };
       this.session = new DictationSession(deps);
       this.capMs = deps.capMs;
+      this.polishLevel = deps.polishLevel;
     }
     onOpen() {
       this.modalEl.addClass("spoken-modal");
       this.hideChrome();
       this.session.onChange((p) => this.render(p));
       this.render(this.session.phase);
+      window.addEventListener("resize", this.onResize);
       void this.session.record();
     }
     onClose() {
+      window.removeEventListener("resize", this.onResize);
+      window.clearTimeout(this.sizing);
       this.session.close();
       this.stopWave();
       this.contentEl.empty();
@@ -1012,9 +1106,12 @@ h1 { font-size: 15px; font-weight: 600; margin: 0; }
       this.stopWave();
       this.clockEl = this.captionEl = null;
       this.canvas = null;
+      this.textEl = null;
       const el = this.contentEl;
+      const from = el.isConnected ? el.offsetHeight : 0;
       el.empty();
       el.addClass("spoken");
+      el.toggleClass("is-grown", GROWN.has(p.kind));
       el.createDiv({ cls: "spoken-handle" });
       const head = el.createDiv({ cls: "spoken-head" });
       const body = el.createDiv({ cls: "spoken-body" });
@@ -1028,7 +1125,7 @@ h1 { font-size: 15px; font-weight: 600; margin: 0; }
         case "starting":
           this.head(head, "busy", "Starting");
           this.stage(body, "0:00", true, false, false, "Allow the microphone if Obsidian asks.");
-          this.foot(foot, null, [["Cancel", () => this.close()]]);
+          this.foot(foot, this.steps("todo", "todo"), [["Cancel", () => this.close()]]);
           this.drawWave(false);
           break;
         case "recording":
@@ -1041,13 +1138,13 @@ h1 { font-size: 15px; font-weight: 600; margin: 0; }
         case "cleaning":
           this.head(head, "busy", "Cleaning");
           this.stage(body, fmt(p.durationMs), false, false, true, p.terms === null ? "Sending the take" : `Biased with ${p.terms} ${plural(p.terms, "term")}`);
-          this.foot(foot, null, [["Cancel", () => this.close()]]);
+          this.foot(foot, this.steps("running", "todo"), [["Cancel", () => this.close()]]);
           this.drawWave(true);
           break;
         case "polishing":
           this.head(head, "busy", "Polishing");
           this.stage(body, fmt(p.durationMs), false, false, true, `${POLISH_LEVELS[p.level]} polish \xB7 names from the terms note`);
-          this.foot(foot, null, [
+          this.foot(foot, this.steps("done", "running", true), [
             ["Cancel", () => this.close()],
             ["Skip", () => this.session.skipPolish()]
           ]);
@@ -1055,7 +1152,8 @@ h1 { font-size: 15px; font-weight: 600; margin: 0; }
           break;
         case "ready": {
           this.head(head, "quiet", "Ready");
-          body.createDiv({ cls: "spoken-text", text: p.text });
+          this.textEl = body.createDiv({ cls: "spoken-text", text: p.text });
+          this.textEl.addEventListener("scroll", () => this.updateFade());
           const meta = body.createDiv({ cls: "spoken-meta" });
           meta.createSpan({ cls: "spoken-facts", text: `${words(p.text)} ${plural(words(p.text), "word")} \xB7 ${fmt(p.durationMs)}` });
           if (!p.targetGone) {
@@ -1078,6 +1176,46 @@ h1 { font-size: 15px; font-weight: 600; margin: 0; }
           break;
       }
       body.addClass("is-entering");
+      this.settle(from);
+    }
+    /**
+     * After a redraw: fit the words to whole lines, then, if the sheet's height
+     * changed, run it from the old height to the new one (styles.css times it).
+     * Nothing to measure until the sheet is in the page.
+     */
+    settle(from) {
+      const el = this.contentEl;
+      if (!el.isConnected) return;
+      window.clearTimeout(this.sizing);
+      el.removeClass("is-sizing");
+      el.setCssProps({ "--spoken-height": "" });
+      this.fitLines();
+      const to = el.offsetHeight;
+      if (!from || Math.abs(to - from) < 1) return;
+      el.setCssProps({ "--spoken-height": `${from}px` });
+      el.addClass("is-sizing");
+      void el.offsetHeight;
+      el.setCssProps({ "--spoken-height": `${to}px` });
+      this.sizing = window.setTimeout(() => {
+        el.removeClass("is-sizing");
+        el.setCssProps({ "--spoken-height": "" });
+      }, SIZING_MS);
+    }
+    /** The words show whole lines only: their box is cut down to the last line that fits. */
+    fitLines() {
+      const text = this.textEl;
+      if (!text) return;
+      text.setCssProps({ "--spoken-text-height": "" });
+      const line = parseFloat(getComputedStyle(text).lineHeight);
+      if (!line) return;
+      const lines = Math.max(1, Math.floor((text.clientHeight + 1) / line));
+      text.setCssProps({ "--spoken-text-height": `${lines * line}px` });
+      this.updateFade();
+    }
+    /** The bottom edge fades only while there are more words below it. */
+    updateFade() {
+      const text = this.textEl;
+      if (text) text.toggleClass("is-more", text.scrollTop + text.clientHeight < text.scrollHeight - 1);
     }
     /** One quiet line: a status pill on the left, the note's name on the right. */
     head(head, pill, word) {
@@ -1101,15 +1239,16 @@ h1 { font-size: 15px; font-weight: 600; margin: 0; }
       if (then) box.createDiv({ cls: "spoken-message-then", text: then });
     }
     /**
-     * At most one full-width primary button, then the quiet ones as text in one
-     * row. Without a primary, its room is kept, so Cancel stays where it was.
+     * One full-width primary button, or while waiting the progress line at the
+     * same height, so Cancel stays where it was; then the quiet ones as text in
+     * one row.
      */
     foot(foot, primary, quiet) {
-      if (primary) {
+      if ("steps" in primary) {
+        this.progress(foot, primary.steps);
+      } else {
         const b = foot.createEl("button", { cls: ["spoken-primary", "mod-cta"], text: primary[0] });
         b.addEventListener("click", primary[1]);
-      } else {
-        foot.createDiv({ cls: "spoken-primary-room" });
       }
       if (!quiet.length) return;
       const row = foot.createDiv({ cls: "spoken-quiet-row" });
@@ -1117,6 +1256,22 @@ h1 { font-size: 15px; font-weight: 600; margin: 0; }
         const b = row.createEl("button", { cls: ["spoken-quiet", ...danger ? ["is-danger"] : []], text });
         b.addEventListener("click", fn);
       }
+    }
+    /** Transcribe, then Polish unless it is off: where this take is. */
+    steps(transcribe, polish, polishing = false) {
+      return { steps: polishing || this.polishLevel() !== "off" ? [transcribe, polish] : [transcribe] };
+    }
+    /** Two thin segments (one when Polish is off), each named beneath: done in the accent colour, running shimmering, to come muted. */
+    progress(foot, steps) {
+      const line = foot.createDiv({ cls: "spoken-progress", attr: { role: "list", "aria-label": "Progress" } });
+      steps.forEach((step, i) => {
+        const item = line.createDiv({
+          cls: ["spoken-step", `is-${step}`],
+          attr: { role: "listitem", ...step === "running" ? { "aria-current": "step" } : {} }
+        });
+        item.createDiv({ cls: "spoken-step-bar" });
+        item.createDiv({ cls: "spoken-step-label", text: i === 0 ? "Transcribe" : "Polish" });
+      });
     }
     /** Off · Light · Full: the level this take shows, and the others one tap away (each re-polishes the kept transcript). */
     levelControl(meta, current2) {
@@ -1244,6 +1399,7 @@ h1 { font-size: 15px; font-weight: 600; margin: 0; }
     { name: "Recording", phase: { kind: "recording", elapsedMs: 42e3, warning: false } },
     { name: "Recording, 30 s left", phase: { kind: "recording", elapsedMs: CAP_MS - 28e3, warning: true } },
     { name: "Cleaning", phase: { kind: "cleaning", durationMs: 42e3, terms: 12 } },
+    { name: "Cleaning, Polish off", phase: { kind: "cleaning", durationMs: 42e3, terms: 12 }, polishOff: true },
     { name: "Polishing", phase: { kind: "polishing", durationMs: 42e3, level: "light" } },
     { name: "Ready, long", phase: ready(LONG) },
     { name: "Ready, short", phase: ready(SHORT) },
@@ -1269,14 +1425,27 @@ h1 { font-size: 15px; font-weight: 600; margin: 0; }
     constructor(host) {
       this.host = host;
       this.modal = null;
+      this.state = null;
       this.ticker = 0;
-      this.switching = false;
     }
     show(state) {
-      this.switching = true;
-      this.modal?.close();
-      this.switching = false;
+      this.state = state;
       window.clearInterval(this.ticker);
+      const modal = this.modal ?? this.open();
+      const inside = modal;
+      inside.levels = state.phase.kind === "starting" ? inside.levels.map(() => 0) : track(inside.levels.length);
+      inside.render(state.phase);
+      const p = state.phase;
+      if (p.kind === "recording") {
+        const start = Date.now() - p.elapsedMs;
+        this.ticker = window.setInterval(() => {
+          let elapsedMs = Date.now() - start;
+          if (elapsedMs >= CAP_MS) elapsedMs = CAP_MS - 1e3;
+          inside.render({ kind: "recording", elapsedMs, warning: p.warning });
+        }, 200);
+      }
+    }
+    open() {
       Modal.host = this.host;
       const deps = {
         // A microphone that is always about to start: the page sets the phase itself.
@@ -1289,7 +1458,7 @@ h1 { font-size: 15px; font-weight: 600; margin: 0; }
         terms: () => [],
         polisher: { polish: () => new Promise(() => {
         }) },
-        polishLevel: () => "light",
+        polishLevel: () => this.state?.polishOff ? "off" : "light",
         polishTerms: () => [],
         capMs: CAP_MS,
         clock: { now: () => Date.now(), every: () => () => {
@@ -1305,29 +1474,22 @@ h1 { font-size: 15px; font-weight: 600; margin: 0; }
       } };
       const file = new TFile(NOTE);
       const modal = new DictateModal(new App(), { editor, ctx: { file, editor }, file }, deps, 12, () => {
-        if (this.switching) return;
+        this.modal = null;
+        window.clearInterval(this.ticker);
         log("Closed: the take is thrown away. Opening it again\u2026");
-        window.setTimeout(() => this.show(state), 900);
+        window.setTimeout(() => {
+          if (this.state) this.show(this.state);
+        }, 900);
       });
       this.modal = modal;
       modal.open();
       const inside = modal;
-      if (state.phase.kind !== "starting") inside.levels = track(inside.levels.length);
       let t = 0;
       inside.session.level = () => loudness(t += 0.09);
       for (const name of ACTIONS) {
         inside.session[name] = (arg) => log(`Pressed: session.${name}(${arg ?? ""})`);
       }
-      inside.render(state.phase);
-      const p = state.phase;
-      if (p.kind === "recording") {
-        const start = Date.now() - p.elapsedMs;
-        this.ticker = window.setInterval(() => {
-          let elapsedMs = Date.now() - start;
-          if (elapsedMs >= CAP_MS) elapsedMs = CAP_MS - 1e3;
-          inside.render({ kind: "recording", elapsedMs, warning: p.warning });
-        }, 200);
-      }
+      return modal;
     }
   };
   var frames = [new Frame(document.getElementById("phone-host")), new Frame(document.getElementById("desk-host"))];

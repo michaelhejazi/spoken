@@ -34,6 +34,12 @@ export const WORD_DRIFT: Record<Exclude<PolishLevel, "off">, number> = {
 	full: 0.25,
 };
 
+/** The fewest words either level may gain or lose, so a short take isn't held to a fraction of a word. */
+export const WORD_FLOOR: Record<Exclude<PolishLevel, "off">, number> = {
+	light: 1,
+	full: 2,
+};
+
 // The prompt, in one place. The system instruction is the same for every take
 // but for the one paragraph that differs by level; the transcript and the
 // terms go in the input, fenced, so the model reads them as material.
@@ -216,7 +222,7 @@ export function guard(raw: string, polished: string, level: Exclude<PolishLevel,
 	if (!polished.trim()) return WHY_EMPTY;
 	const before = countWords(raw);
 	const after = countWords(polished);
-	if (Math.abs(after - before) > WORD_DRIFT[level] * before) return whyWords(before, after);
+	if (Math.abs(after - before) > Math.max(WORD_FLOOR[level], WORD_DRIFT[level] * before)) return whyWords(before, after);
 	if (polished.split("\n").some((line) => looksLikeReply(line, raw))) return WHY_REPLY;
 	const name = newName(raw, polished, terms);
 	if (name) return whyNewName(name);

@@ -2,7 +2,9 @@
    design/playground renders every state of it from this file.
 
    Two text sizes (--font-ui-medium, --font-ui-small) plus the timer, the
-   4-point --size-4-* scale for every gap, --radius-l for every corner. */
+   4-point --size-4-* scale for every gap, --radius-l for every corner.
+   Heights are in --spoken-vh, the viewport's 1vh unless a page that draws the
+   sheet in a frame (design/playground) says otherwise. */
 
 .modal.spoken-modal {
 	padding: 0;
@@ -23,11 +25,36 @@
 .modal.spoken-modal .modal-content.spoken {
 	display: flex;
 	flex-direction: column;
-	/* One height for every state, so a change of state never resizes the sheet. */
-	height: min(380px, 72vh);
+	/* Starting, Recording, Cleaning and Polishing share one compact height, so
+	   moving between them moves nothing. */
+	--spoken-compact: min(380px, calc(72 * var(--spoken-vh, 1vh)));
+	height: var(--spoken-compact);
 	padding: var(--size-4-2) var(--size-4-5) var(--size-4-4);
 	padding-bottom: calc(var(--size-4-4) + env(safe-area-inset-bottom, 0px));
 	font-size: var(--font-ui-medium);
+	overflow: hidden;
+}
+
+/* Ready, Failed and Unsupported take the height their content needs, from
+   the compact one up to 70vh in a dialog and 85vh on a phone. */
+.modal.spoken-modal .modal-content.spoken.is-grown {
+	height: auto;
+	min-height: var(--spoken-compact);
+	max-height: calc(70 * var(--spoken-vh, 1vh));
+}
+.is-phone .modal.spoken-modal .modal-content.spoken.is-grown {
+	max-height: calc(85 * var(--spoken-vh, 1vh));
+}
+/* While the height changes: from the old height to the new, over 150 ms
+   (src/modal.ts sets both ends and takes this class off after). */
+.modal.spoken-modal .modal-content.spoken.is-sizing {
+	box-sizing: border-box;
+	height: var(--spoken-height);
+	min-height: 0;
+	max-height: none;
+	transition: height 150ms ease-out;
+}
+.spoken.is-sizing .spoken-body {
 	overflow: hidden;
 }
 
@@ -123,7 +150,7 @@
 
 /* The hero's room: whatever is left between the header and the footer. */
 .spoken-body {
-	flex: 1;
+	flex: 1 1 auto;
 	min-height: 0;
 	display: flex;
 	flex-direction: column;
@@ -173,9 +200,13 @@
 	height: 96px;
 	color: var(--interactive-accent);
 }
-/* Waiting on Gemini: the last of the take, still, with light passing over it. */
+/* Waiting on Gemini: the last of the take, still, with light passing over it.
+   The running step of the progress line carries the same light. */
 .spoken-wave.is-frozen {
 	color: var(--text-faint);
+}
+.spoken-wave.is-frozen,
+.spoken-step.is-running .spoken-step-bar {
 	-webkit-mask-image: linear-gradient(100deg, rgba(0, 0, 0, 0.45) 30%, #000 50%, rgba(0, 0, 0, 0.45) 70%);
 	mask-image: linear-gradient(100deg, rgba(0, 0, 0, 0.45) 30%, #000 50%, rgba(0, 0, 0, 0.45) 70%);
 	-webkit-mask-size: 250% 100%;
@@ -202,10 +233,12 @@
 	color: var(--color-orange);
 }
 
-/* Ready: the words on the sheet's own surface, scrolling inside it. */
+/* Ready: the words on the sheet's own surface, scrolling inside it, cut to
+   whole lines (src/modal.ts measures how many fit). */
 .spoken-text {
-	flex: 1;
+	flex: 1 1 auto;
 	min-height: 0;
+	max-height: var(--spoken-text-height, none);
 	overflow-y: auto;
 	font-family: var(--font-text);
 	font-size: var(--font-ui-medium);
@@ -214,10 +247,11 @@
 	user-select: text;
 	-webkit-user-select: text;
 	color: var(--text-normal);
-	/* Words scrolling out under the meta line fade rather than cut; the padding lets the last line clear the fade. */
-	padding-bottom: var(--size-4-4);
-	-webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - var(--size-4-6)), transparent);
-	mask-image: linear-gradient(to bottom, #000 calc(100% - var(--size-4-6)), transparent);
+}
+/* Only while there are more words below: the bottom edge fades. */
+.spoken-text.is-more {
+	-webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - var(--size-4-8)), transparent);
+	mask-image: linear-gradient(to bottom, #000 calc(100% - var(--size-4-8)), transparent);
 }
 .spoken-meta {
 	flex: none;
@@ -294,8 +328,40 @@
 	gap: var(--size-4-1);
 	padding-top: var(--size-4-4);
 }
-.spoken-primary-room {
+/* While waiting, the progress line stands where the primary would, at its height. */
+.spoken-progress {
 	height: 48px;
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+}
+.spoken-step {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-2);
+}
+.spoken-step-bar {
+	height: 4px;
+	border-radius: var(--radius-l);
+	background: var(--background-modifier-border);
+}
+.spoken-step.is-done .spoken-step-bar {
+	background: var(--interactive-accent);
+}
+.spoken-step.is-running .spoken-step-bar {
+	background: var(--text-faint);
+}
+.spoken-step-label {
+	text-align: center;
+	font-size: var(--font-ui-small);
+	color: var(--text-faint);
+}
+.spoken-step.is-done .spoken-step-label {
+	color: var(--text-muted);
+}
+.spoken-step.is-running .spoken-step-label {
+	color: var(--text-normal);
 }
 .modal.spoken-modal button.spoken-primary {
 	width: 100%;
@@ -333,8 +399,12 @@
 @media (prefers-reduced-motion: reduce) {
 	.spoken-body.is-entering,
 	.spoken-wave.is-frozen,
+	.spoken-step.is-running .spoken-step-bar,
 	.spoken-pill .spoken-dot {
 		animation: none;
+	}
+	.modal.spoken-modal .modal-content.spoken.is-sizing {
+		transition: none;
 	}
 }
 

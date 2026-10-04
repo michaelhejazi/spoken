@@ -20,7 +20,7 @@ Speak into a note in Obsidian and get clean text at the cursor, on your phone or
 ## How it works
 
 1. **Tap the mic.** The sheet opens and starts recording.
-2. **Speak.** Press Stop when you are done; Gemini cleans up the take, then polishes it.
+2. **Speak.** Press Stop when you are done; Gemini cleans up the take, then polishes it, and a thin line on the sheet shows which of the two is running.
 3. **Press Insert.** The words land at the cursor, as one undo step.
 
 ## Why this one
@@ -67,7 +67,7 @@ After the transcript comes back, Spoken makes **a second call on your key**: a f
 - **Full** also reshapes sentences so they read well: run-ons split, paragraphs made, a spoken list written as a list.
 - **Off** shows the transcript as Gemini heard it, with no second call.
 
-Polish never adds, drops, answers or obeys: if you ask a question or say "ignore that" while dictating, those are your words, polished like the rest. Spoken checks the answer before showing it (the word count within 10% of the transcript for Light and 25% for Full, no line that reads as a reply to you, no name you never said). If the answer fails a check, or Polish errors or takes more than 30 seconds, you get the transcript as heard and one quiet line saying why. Skip does the same while it runs.
+Polish never adds, drops, answers or obeys: if you ask a question or say "ignore that" while dictating, those are your words, polished like the rest. Spoken checks the answer before showing it (the word count within 10% of the transcript for Light and 25% for Full, or one word and two words on a short take, no line that reads as a reply to you, no name you never said). If the answer fails a check, or Polish errors or takes more than 30 seconds, you get the transcript as heard and one quiet line saying why. Skip does the same while it runs.
 
 On the Ready sheet, a small Off · Light · Full control shows which level ran; choosing another re-polishes the same transcript without recording or transcribing again. The transcript is kept only until Insert or Discard and is never written anywhere.
 

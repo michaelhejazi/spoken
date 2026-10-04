@@ -3,9 +3,11 @@
 // buttons. Words land only on Insert; any other way out throws the take away.
 //
 // Every state has the same frame: a handle, one header line (a status pill and
-// the note's name), one hero, then a footer of at most one primary button and
-// a row of text buttons pinned to the bottom of a fixed-height sheet, so a
-// state change swaps the hero without anything around it moving.
+// the note's name), one hero, then a footer of one primary button (or, while
+// waiting, the progress line in its place) and a row of text buttons. Starting,
+// Recording, Cleaning and Polishing share one compact height, so moving between
+// them moves nothing; Ready, Failed and Unsupported grow to what their content
+// needs, up to a cap, and the change of height animates.
 
 import { App, Editor, MarkdownFileInfo, MarkdownView, Modal, Notice, TFile } from "obsidian";
 import { insertAtCursor } from "./insert";
@@ -22,15 +24,25 @@ const BARS = 48;
 
 type Pill = "recording" | "amber" | "quiet" | "busy" | "error";
 type Quiet = [text: string, fn: () => void, danger?: boolean];
+type Step = "done" | "running" | "todo";
+type Primary = [text: string, fn: () => void] | { steps: Step[] };
+
+/** The states whose content sets the sheet's height; the rest keep the compact one. */
+const GROWN: ReadonlySet<Phase["kind"]> = new Set(["ready", "failed", "unsupported"]);
+/** A little longer than the 150 ms the height takes in styles.css. */
+const SIZING_MS = 200;
 
 export class DictateModal extends Modal {
 	private readonly session: DictationSession;
 	private readonly capMs: number;
+	private readonly polishLevel: () => PolishLevel;
 	private shownKind: string | null = null;
 	private shownWarning = false;
 	private clockEl: HTMLElement | null = null;
 	private captionEl: HTMLElement | null = null;
 	private canvas: HTMLCanvasElement | null = null;
+	private textEl: HTMLElement | null = null;
+	private sizing = 0;
 	private levels: number[] = new Array<number>(BARS).fill(0);
 	private frame = 0;
 	private lastSample = 0;
@@ -45,6 +57,7 @@ export class DictateModal extends Modal {
 		super(app);
 		this.session = new DictationSession(deps);
 		this.capMs = deps.capMs;
+		this.polishLevel = deps.polishLevel;
 	}
 
 	onOpen(): void {
@@ -52,10 +65,13 @@ export class DictateModal extends Modal {
 		this.hideChrome();
 		this.session.onChange((p) => this.render(p));
 		this.render(this.session.phase);
+		window.addEventListener("resize", this.onResize);
 		void this.session.record();
 	}
 
 	onClose(): void {
+		window.removeEventListener("resize", this.onResize);
+		window.clearTimeout(this.sizing);
 		this.session.close();
 		this.stopWave();
 		this.contentEl.empty();
@@ -95,10 +111,13 @@ export class DictateModal extends Modal {
 		this.stopWave();
 		this.clockEl = this.captionEl = null;
 		this.canvas = null;
+		this.textEl = null;
 
 		const el = this.contentEl;
+		const from = el.isConnected ? el.offsetHeight : 0;
 		el.empty();
 		el.addClass("spoken");
+		el.toggleClass("is-grown", GROWN.has(p.kind));
 		el.createDiv({ cls: "spoken-handle" });
 		const head = el.createDiv({ cls: "spoken-head" });
 		const body = el.createDiv({ cls: "spoken-body" });
@@ -112,7 +131,7 @@ export class DictateModal extends Modal {
 			case "starting":
 				this.head(head, "busy", "Starting");
 				this.stage(body, "0:00", true, false, false, "Allow the microphone if Obsidian asks.");
-				this.foot(foot, null, [["Cancel", () => this.close()]]);
+				this.foot(foot, this.steps("todo", "todo"), [["Cancel", () => this.close()]]);
 				this.drawWave(false);
 				break;
 			case "recording":
@@ -125,13 +144,13 @@ export class DictateModal extends Modal {
 			case "cleaning":
 				this.head(head, "busy", "Cleaning");
 				this.stage(body, fmt(p.durationMs), false, false, true, p.terms === null ? "Sending the take" : `Biased with ${p.terms} ${plural(p.terms, "term")}`);
-				this.foot(foot, null, [["Cancel", () => this.close()]]);
+				this.foot(foot, this.steps("running", "todo"), [["Cancel", () => this.close()]]);
 				this.drawWave(true);
 				break;
 			case "polishing":
 				this.head(head, "busy", "Polishing");
 				this.stage(body, fmt(p.durationMs), false, false, true, `${POLISH_LEVELS[p.level]} polish · names from the terms note`);
-				this.foot(foot, null, [
+				this.foot(foot, this.steps("done", "running", true), [
 					["Cancel", () => this.close()],
 					["Skip", () => this.session.skipPolish()],
 				]);
@@ -139,7 +158,8 @@ export class DictateModal extends Modal {
 				break;
 			case "ready": {
 				this.head(head, "quiet", "Ready");
-				body.createDiv({ cls: "spoken-text", text: p.text });
+				this.textEl = body.createDiv({ cls: "spoken-text", text: p.text });
+				this.textEl.addEventListener("scroll", () => this.updateFade());
 				const meta = body.createDiv({ cls: "spoken-meta" });
 				meta.createSpan({ cls: "spoken-facts", text: `${words(p.text)} ${plural(words(p.text), "word")} · ${fmt(p.durationMs)}` });
 				if (!p.targetGone) {
@@ -163,6 +183,53 @@ export class DictateModal extends Modal {
 		}
 		// The body fades in on every change of state; ticks of the same state redraw in place.
 		body.addClass("is-entering");
+		this.settle(from);
+	}
+
+	private onResize = (): void => {
+		if (this.textEl) this.settle(0);
+	};
+
+	/**
+	 * After a redraw: fit the words to whole lines, then, if the sheet's height
+	 * changed, run it from the old height to the new one (styles.css times it).
+	 * Nothing to measure until the sheet is in the page.
+	 */
+	private settle(from: number): void {
+		const el = this.contentEl;
+		if (!el.isConnected) return;
+		window.clearTimeout(this.sizing);
+		el.removeClass("is-sizing");
+		el.setCssProps({ "--spoken-height": "" });
+		this.fitLines();
+		const to = el.offsetHeight;
+		if (!from || Math.abs(to - from) < 1) return;
+		el.setCssProps({ "--spoken-height": `${from}px` });
+		el.addClass("is-sizing");
+		void el.offsetHeight; // the old height is laid out, so the change to the new one is a transition
+		el.setCssProps({ "--spoken-height": `${to}px` });
+		this.sizing = window.setTimeout(() => {
+			el.removeClass("is-sizing");
+			el.setCssProps({ "--spoken-height": "" });
+		}, SIZING_MS);
+	}
+
+	/** The words show whole lines only: their box is cut down to the last line that fits. */
+	private fitLines(): void {
+		const text = this.textEl;
+		if (!text) return;
+		text.setCssProps({ "--spoken-text-height": "" });
+		const line = parseFloat(getComputedStyle(text).lineHeight);
+		if (!line) return;
+		const lines = Math.max(1, Math.floor((text.clientHeight + 1) / line));
+		text.setCssProps({ "--spoken-text-height": `${lines * line}px` });
+		this.updateFade();
+	}
+
+	/** The bottom edge fades only while there are more words below it. */
+	private updateFade(): void {
+		const text = this.textEl;
+		if (text) text.toggleClass("is-more", text.scrollTop + text.clientHeight < text.scrollHeight - 1);
 	}
 
 	/** One quiet line: a status pill on the left, the note's name on the right. */
@@ -190,15 +257,16 @@ export class DictateModal extends Modal {
 	}
 
 	/**
-	 * At most one full-width primary button, then the quiet ones as text in one
-	 * row. Without a primary, its room is kept, so Cancel stays where it was.
+	 * One full-width primary button, or while waiting the progress line at the
+	 * same height, so Cancel stays where it was; then the quiet ones as text in
+	 * one row.
 	 */
-	private foot(foot: HTMLElement, primary: [string, () => void] | null, quiet: Quiet[]): void {
-		if (primary) {
+	private foot(foot: HTMLElement, primary: Primary, quiet: Quiet[]): void {
+		if ("steps" in primary) {
+			this.progress(foot, primary.steps);
+		} else {
 			const b = foot.createEl("button", { cls: ["spoken-primary", "mod-cta"], text: primary[0] });
 			b.addEventListener("click", primary[1]);
-		} else {
-			foot.createDiv({ cls: "spoken-primary-room" });
 		}
 		if (!quiet.length) return;
 		const row = foot.createDiv({ cls: "spoken-quiet-row" });
@@ -206,6 +274,24 @@ export class DictateModal extends Modal {
 			const b = row.createEl("button", { cls: ["spoken-quiet", ...(danger ? ["is-danger"] : [])], text });
 			b.addEventListener("click", fn);
 		}
+	}
+
+	/** Transcribe, then Polish unless it is off: where this take is. */
+	private steps(transcribe: Step, polish: Step, polishing = false): Primary {
+		return { steps: polishing || this.polishLevel() !== "off" ? [transcribe, polish] : [transcribe] };
+	}
+
+	/** Two thin segments (one when Polish is off), each named beneath: done in the accent colour, running shimmering, to come muted. */
+	private progress(foot: HTMLElement, steps: Step[]): void {
+		const line = foot.createDiv({ cls: "spoken-progress", attr: { role: "list", "aria-label": "Progress" } });
+		steps.forEach((step, i) => {
+			const item = line.createDiv({
+				cls: ["spoken-step", `is-${step}`],
+				attr: { role: "listitem", ...(step === "running" ? { "aria-current": "step" } : {}) },
+			});
+			item.createDiv({ cls: "spoken-step-bar" });
+			item.createDiv({ cls: "spoken-step-label", text: i === 0 ? "Transcribe" : "Polish" });
+		});
 	}
 
 	/** Off · Light · Full: the level this take shows, and the others one tap away (each re-polishes the kept transcript). */

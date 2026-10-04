@@ -19,6 +19,8 @@ declare global {
 		createSpan(o?: ElOpts): HTMLSpanElement;
 		addClass(...cls: string[]): void;
 		removeClass(...cls: string[]): void;
+		toggleClass(cls: string | string[], value: boolean): void;
+		setCssProps(props: Record<string, string>): void;
 		setText(text: string): void;
 		empty(): void;
 	}
@@ -55,6 +57,12 @@ Element.prototype.addClass = function (this: Element, ...cls: string[]) {
 };
 proto.removeClass = function (this: HTMLElement, ...cls: string[]) {
 	this.classList.remove(...cls);
+};
+proto.toggleClass = function (this: HTMLElement, cls: string | string[], value: boolean) {
+	for (const c of Array.isArray(cls) ? cls : [cls]) this.classList.toggle(c, value);
+};
+proto.setCssProps = function (this: HTMLElement, props: Record<string, string>) {
+	for (const [k, v] of Object.entries(props)) this.style.setProperty(k, v);
 };
 
 export class App {}

@@ -7,6 +7,8 @@ GitHub release with `main.js`, `manifest.json` and `styles.css` attached.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-04
+
 ### Changed
 
 - The sheet, redesigned. A drag handle and one quiet header line: a status
@@ -17,9 +19,21 @@ GitHub release with `main.js`, `manifest.json` and `styles.css` attached.
   shimmering; Ready shows the words on the sheet itself, words and time
   under them, a compact Off · Light · Full control in place of the links,
   then Insert full width with Discard and Retake as text; Not cleaned shows
-  the message with Try again. The sheet keeps one height in every state and
-  fades between them. Obsidian's close button is hidden inside the sheet;
-  Escape, the backdrop and Cancel still close it.
+  the message with Try again. Starting, Recording, Cleaning and Polishing
+  share one compact height, so nothing moves between them; Ready, Not cleaned
+  and Can't record grow to what their content needs, up to 85% of the screen
+  on a phone and 70% in a desktop dialog, and the height changes over the
+  same 150 ms as the fade. The words show whole lines only, and their bottom
+  edge fades only while there is more to scroll. Obsidian's close button is
+  hidden inside the sheet; Escape, the backdrop and Cancel still close it.
+- While waiting (Starting, Cleaning, Polishing), a progress line stands where
+  the primary button would: two thin segments, Transcribe and Polish (one
+  when Polish is Off), the finished one in the accent colour, the running one
+  shimmering like the wave, the one to come muted.
+- Polish's word-count check has a floor: Light always allows at least one
+  word of difference and Full at least two, so a short take that gains or
+  loses a word is no longer handed back as heard. The 10% and 25% stand
+  for longer takes.
 
 ### Added
 
@@ -201,7 +215,8 @@ the repository's public history.
 - Retake, Discard and Try again; a failed take is kept with a sentence saying
   why.
 
-[Unreleased]: https://github.com/michaelhejazi/spoken/compare/0.5.0...HEAD
+[Unreleased]: https://github.com/michaelhejazi/spoken/compare/0.6.0...HEAD
+[0.6.0]: https://github.com/michaelhejazi/spoken/compare/0.5.0...0.6.0
 [0.5.0]: https://github.com/michaelhejazi/spoken/compare/0.4.0...0.5.0
 [0.4.0]: https://github.com/michaelhejazi/spoken/compare/0.3.3...0.4.0
 [0.3.3]: https://github.com/michaelhejazi/spoken/compare/0.3.2...0.3.3

@@ -114,6 +114,7 @@ shown only if it passes:
 | Check | Light | Full |
 |---|---|---|
 | Word count (words have a letter or digit, so list dashes don't count) within this fraction of the transcript's | 10% | 25% |
+| ...but never held to fewer words of difference than | 1 | 2 |
 | No line opening like a reply ("Sure,", "Here's the polished transcript", "As an AI", a `<transcript>` tag…) unless the transcript itself has those words | ✓ | ✓ |
 | No capitalised word that is in neither the transcript nor the terms (an answer such as "Paris.") | ✓ | ✓ |
 

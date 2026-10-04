@@ -1,7 +1,9 @@
 // The playground: the real sheet (src/modal.ts, styles.css) in every state, in
 // a phone frame and at desktop width, light and dark. A state is drawn by
 // handing the sheet a phase as the session would; buttons are logged instead
-// of acting, and a sheet that closes opens again in the same state.
+// of acting, and a sheet that closes opens again in the same state. Moving
+// between states redraws the open sheet, so a change of height animates as
+// it does in the app.
 
 import { DictateModal } from "../../src/modal";
 import type { Phase, SessionDeps } from "../../src/session";
@@ -22,6 +24,8 @@ const LONG =
 interface State {
 	name: string;
 	phase: Phase;
+	/** Polish set to Off in settings: the progress line has one step. */
+	polishOff?: true;
 }
 
 const ready = (text: string, extra: Partial<Extract<Phase, { kind: "ready" }>> = {}): Phase => ({
@@ -39,6 +43,7 @@ const STATES: State[] = [
 	{ name: "Recording", phase: { kind: "recording", elapsedMs: 42_000, warning: false } },
 	{ name: "Recording, 30 s left", phase: { kind: "recording", elapsedMs: CAP_MS - 28_000, warning: true } },
 	{ name: "Cleaning", phase: { kind: "cleaning", durationMs: 42_000, terms: 12 } },
+	{ name: "Cleaning, Polish off", phase: { kind: "cleaning", durationMs: 42_000, terms: 12 }, polishOff: true },
 	{ name: "Polishing", phase: { kind: "polishing", durationMs: 42_000, level: "light" } },
 	{ name: "Ready, long", phase: ready(LONG) },
 	{ name: "Ready, short", phase: ready(SHORT) },
@@ -75,49 +80,18 @@ function log(text: string): void {
 
 class Frame {
 	private modal: DictateModal | null = null;
+	private state: State | null = null;
 	private ticker = 0;
-	private switching = false;
 
 	constructor(private readonly host: HTMLElement) {}
 
 	show(state: State): void {
-		this.switching = true;
-		this.modal?.close();
-		this.switching = false;
+		this.state = state;
 		window.clearInterval(this.ticker);
-
-		Modal.host = this.host;
-		const deps = {
-			// A microphone that is always about to start: the page sets the phase itself.
-			recorders: () => ({ start: () => new Promise<void>(() => {}), stop: () => new Promise(() => {}), release() {}, level: () => 0, onError: null }),
-			transcriber: { transcribe: () => new Promise(() => {}) },
-			terms: () => [],
-			polisher: { polish: () => new Promise(() => {}) },
-			polishLevel: () => "light",
-			polishTerms: () => [],
-			capMs: CAP_MS,
-			clock: { now: () => Date.now(), every: () => () => {} },
-			signal: () => {},
-			awake: { hold() {}, release() {} },
-		} as unknown as SessionDeps;
-		const editor = { getCursor: () => ({ line: 0, ch: 0 }), getLine: () => "", transaction() {}, focus() {} };
-		const file = new TFile(NOTE);
-		const modal = new DictateModal(new App() as never, { editor, ctx: { file, editor }, file } as never, deps, 12, () => {
-			if (this.switching) return;
-			log("Closed: the take is thrown away. Opening it again…");
-			window.setTimeout(() => this.show(state), 900);
-		});
-		this.modal = modal;
-		modal.open();
-
+		const modal = this.modal ?? this.open();
 		const inside = modal as unknown as Inside;
 		// Mid-take, as if recorded so far; a sheet still waiting for the microphone has heard nothing.
-		if (state.phase.kind !== "starting") inside.levels = track(inside.levels.length);
-		let t = 0;
-		inside.session.level = () => loudness((t += 0.09));
-		for (const name of ACTIONS) {
-			inside.session[name] = (arg?: string) => log(`Pressed: session.${name}(${arg ?? ""})`);
-		}
+		inside.levels = state.phase.kind === "starting" ? inside.levels.map(() => 0) : track(inside.levels.length);
 		inside.render(state.phase);
 
 		const p = state.phase;
@@ -129,6 +103,43 @@ class Frame {
 				inside.render({ kind: "recording", elapsedMs, warning: p.warning });
 			}, 200);
 		}
+	}
+
+	private open(): DictateModal {
+		Modal.host = this.host;
+		const deps = {
+			// A microphone that is always about to start: the page sets the phase itself.
+			recorders: () => ({ start: () => new Promise<void>(() => {}), stop: () => new Promise(() => {}), release() {}, level: () => 0, onError: null }),
+			transcriber: { transcribe: () => new Promise(() => {}) },
+			terms: () => [],
+			polisher: { polish: () => new Promise(() => {}) },
+			polishLevel: () => (this.state?.polishOff ? "off" : "light"),
+			polishTerms: () => [],
+			capMs: CAP_MS,
+			clock: { now: () => Date.now(), every: () => () => {} },
+			signal: () => {},
+			awake: { hold() {}, release() {} },
+		} as unknown as SessionDeps;
+		const editor = { getCursor: () => ({ line: 0, ch: 0 }), getLine: () => "", transaction() {}, focus() {} };
+		const file = new TFile(NOTE);
+		const modal = new DictateModal(new App() as never, { editor, ctx: { file, editor }, file } as never, deps, 12, () => {
+			this.modal = null;
+			window.clearInterval(this.ticker);
+			log("Closed: the take is thrown away. Opening it again…");
+			window.setTimeout(() => {
+				if (this.state) this.show(this.state);
+			}, 900);
+		});
+		this.modal = modal;
+		modal.open();
+
+		const inside = modal as unknown as Inside;
+		let t = 0;
+		inside.session.level = () => loudness((t += 0.09));
+		for (const name of ACTIONS) {
+			inside.session[name] = (arg?: string) => log(`Pressed: session.${name}(${arg ?? ""})`);
+		}
+		return modal;
 	}
 }
 

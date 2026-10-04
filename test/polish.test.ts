@@ -8,6 +8,7 @@ import {
 	WHY_TOO_SLOW,
 	WHY_UNREACHABLE,
 	WORD_DRIFT,
+	WORD_FLOOR,
 	countWords,
 	guard,
 	polishBody,
@@ -141,6 +142,24 @@ describe("the guard's thresholds", () => {
 		expect(guard(raw, withWords(75), "full")).toBeNull();
 		expect(guard(raw, withWords(126), "full")).toBe(whyWords(100, 126));
 		expect(guard(raw, withWords(74), "full")).toBe(whyWords(100, 74));
+	});
+
+	it("floor: a four-word take may gain or lose one word at Light, and no more", () => {
+		const four = withWords(4);
+		expect(WORD_FLOOR.light).toBe(1);
+		expect(guard(four, withWords(5), "light")).toBeNull();
+		expect(guard(four, withWords(3), "light")).toBeNull();
+		expect(guard(four, withWords(6), "light")).toBe(whyWords(4, 6));
+		expect(guard(four, withWords(2), "light")).toBe(whyWords(4, 2));
+	});
+
+	it("floor: a four-word take may gain or lose two words at Full, and no more", () => {
+		const four = withWords(4);
+		expect(WORD_FLOOR.full).toBe(2);
+		expect(guard(four, withWords(6), "full")).toBeNull();
+		expect(guard(four, withWords(2), "full")).toBeNull();
+		expect(guard(four, withWords(7), "full")).toBe(whyWords(4, 7));
+		expect(guard(four, withWords(1), "full")).toBe(whyWords(4, 1));
 	});
 
 	it("list dashes are not words, so a spoken list made a list is not counted as growth", () => {

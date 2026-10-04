@@ -130,7 +130,9 @@ element) and inlines the real `styles.css`, with Obsidian's default theme
 variables approximated in `design/playground/shell.html`. The page is
 committed so a copy can be opened without building; edit `shell.html` or
 `main.ts` beside it, never `index.html`, and rebuild after any change to the
-sheet's code or `styles.css`.
+sheet's code or `styles.css`. Switching state redraws the open sheet, so a
+change of height animates as in the app; each frame sets `--spoken-vh` to 1%
+of its own height, so the sheet's vh caps are the frame's, not the page's.
 `docs/` holds the contract of
 the requests to Gemini, the notes for submitting to the community directory, and
 the README's screenshots (`docs/images/`).

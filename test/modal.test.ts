@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import type { PolishLevel } from "../src/polish";
 import type { Phase, SessionDeps } from "../src/session";
 
 // The sheet over a stand-in for Obsidian's Modal and its DOM helpers
@@ -37,6 +38,14 @@ function el(tag: string, o: Opts = {}): El & Record<string, unknown> {
 		addClass(c: string) {
 			e.cls.push(c);
 		},
+		removeClass(c: string) {
+			e.cls = e.cls.filter((x) => x !== c);
+		},
+		toggleClass(c: string, on: boolean) {
+			e.cls = e.cls.filter((x) => x !== c);
+			if (on) e.cls.push(c);
+		},
+		setCssProps() {},
 		setText(t: string) {
 			e.text = t;
 		},
@@ -106,9 +115,9 @@ interface Drawn {
 	modal: El;
 	calls: string[];
 }
-function draw(p: Phase): Drawn {
+function draw(p: Phase, polishLevel: PolishLevel = "light"): Drawn {
 	const target = { editor: {}, ctx: {}, file: { basename: NAME } };
-	const modal = new DictateModal({} as never, target as never, { capMs: 120_000 } as SessionDeps, 3, () => {});
+	const modal = new DictateModal({} as never, target as never, { capMs: 120_000, polishLevel: () => polishLevel } as SessionDeps, 3, () => {});
 	const inside = modal as unknown as { render(p: Phase): void; hideChrome(): void; session: Record<string, unknown>; contentEl: El; modalEl: El };
 	const calls: string[] = [];
 	for (const name of ["stop", "retry", "retake", "repolish", "skipPolish"]) {
@@ -156,8 +165,13 @@ describe("the sheet, every state", () => {
 		const primaries = all(foot, "spoken-primary");
 		expect(primaries.map((b) => b.text)).toEqual(primary ? [primary] : []);
 		if (primary) expect(primaries[0].cls).toContain("mod-cta");
-		else expect(find(foot, "spoken-primary-room")).toBeDefined();
+		else expect(find(foot, "spoken-progress")).toBeDefined();
 		expect(all(foot, "spoken-quiet").map((b) => b.text)).toEqual(quiet);
+	});
+
+	it.each(STATES)("%s: the sheet grows to its content only in Ready, Failed and Unsupported", (_, p) => {
+		const grown = ["unsupported", "ready", "failed"].includes(p.kind);
+		expect(draw(p).sheet.cls.includes("is-grown")).toBe(grown);
 	});
 
 	it("Obsidian's close button and title are hidden in this modal, and the content is not", () => {
@@ -200,6 +214,35 @@ describe("the sheet, every state", () => {
 		expect(press(STATES[5][1], "Skip")).toEqual(["skipPolish"]);
 		expect(press(ready(), "Retake")).toEqual(["retake"]);
 		expect(press(STATES[8][1], "Try again")).toEqual(["retry"]);
+	});
+});
+
+describe("the progress line, in the primary's place while waiting", () => {
+	const line = (p: Phase, level: PolishLevel = "light") => {
+		const progress = find(draw(p, level).sheet, "spoken-progress")!;
+		return progress.children.map((s) => `${texts(s).join("")}:${s.cls.find((c) => c.startsWith("is-"))}`);
+	};
+
+	it("progress, starting: Transcribe and Polish, both to come", () => {
+		expect(line({ kind: "starting" })).toEqual(["Transcribe:is-todo", "Polish:is-todo"]);
+	});
+
+	it("progress, cleaning: Transcribe running, Polish to come", () => {
+		expect(line({ kind: "cleaning", durationMs: 12_000, terms: 3 })).toEqual(["Transcribe:is-running", "Polish:is-todo"]);
+	});
+
+	it("progress, polishing: Transcribe done, Polish running", () => {
+		expect(line({ kind: "polishing", durationMs: 12_000, level: "full" })).toEqual(["Transcribe:is-done", "Polish:is-running"]);
+	});
+
+	it("progress, Polish off: one segment, Transcribe", () => {
+		expect(line({ kind: "starting" }, "off")).toEqual(["Transcribe:is-todo"]);
+		expect(line({ kind: "cleaning", durationMs: 12_000, terms: 3 }, "off")).toEqual(["Transcribe:is-running"]);
+	});
+
+	it("progress: the running step is the current one, for a screen reader", () => {
+		const progress = find(draw({ kind: "cleaning", durationMs: 12_000, terms: 3 }).sheet, "spoken-progress")!;
+		expect(progress.children.map((s) => s.attr["aria-current"])).toEqual(["step", undefined]);
 	});
 });
 
@@ -261,14 +304,28 @@ describe("styles.css and the playground", () => {
 		expect(sheet).not.toMatch(/--radius-[sm]\b|border-radius: \d+px/);
 	});
 
-	it("state changes fade in over 150 ms", () => {
+	it("state changes fade in over 150 ms, and a change of height takes the same 150 ms", () => {
 		expect(css).toMatch(/\.spoken-body\.is-entering \{\s*animation: spoken-in 150ms/);
+		expect(css).toMatch(/\.is-sizing \{[^}]*transition: height 150ms/);
+	});
+
+	it("heights: compact min(380px, 72vh); grown up to 70vh in a dialog and 85vh on a phone", () => {
+		expect(css).toContain("--spoken-compact: min(380px, calc(72 * var(--spoken-vh, 1vh)));");
+		expect(css).toMatch(/\.spoken\.is-grown \{[^}]*min-height: var\(--spoken-compact\);\s*max-height: calc\(70 \* var\(--spoken-vh, 1vh\)\);/);
+		expect(css).toMatch(/\.is-phone [^{]*\.is-grown \{\s*max-height: calc\(85 \* var\(--spoken-vh, 1vh\)\);/);
+	});
+
+	it("the progress line stands at the primary's height, and the words fade only while there is more", () => {
+		expect(css).toMatch(/\.spoken-progress \{\s*height: 48px;/);
+		expect(css).toMatch(/button\.spoken-primary \{[^}]*height: 48px;/);
+		expect(css).toMatch(/\.spoken-text\.is-more \{[^}]*calc\(100% - var\(--size-4-8\)\)/);
+		expect(css.slice(css.indexOf(".spoken-text {"), css.indexOf(".spoken-text.is-more"))).not.toContain("mask-image");
 	});
 
 	it("the built playground carries today's styles.css and draws every state", () => {
 		const page = readFileSync("design/playground/index.html", "utf8");
 		expect(page).toContain(css.replace(/<\/style/gi, "<\\/style"));
-		for (const name of ["Starting", "Recording, 30 s left", "Cleaning", "Polishing", "Ready, long", "Ready, short", "Ready, note gone", "Failed", "Unsupported"]) {
+		for (const name of ["Starting", "Recording, 30 s left", "Cleaning", "Cleaning, Polish off", "Polishing", "Ready, long", "Ready, short", "Ready, note gone", "Failed", "Unsupported"]) {
 			expect(page).toContain(`"${name}"`);
 		}
 	});
