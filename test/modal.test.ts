@@ -89,7 +89,7 @@ vi.mock("obsidian", () => {
 const { DictateModal, selectedLevel } = await import("../src/modal");
 
 const NAME = "A very long note name that ends in an ellipsis";
-const ready = (extra: Partial<Extract<Phase, { kind: "ready" }>> = {}, text = "Tell Flio hello."): Phase => ({
+const ready = (extra: Partial<Extract<Phase, { kind: "ready" }>> = {}, text = "Tell Vexo hello."): Phase => ({
 	kind: "ready",
 	text,
 	biased: true,
@@ -259,12 +259,12 @@ describe("Polish on the Ready sheet", () => {
 	});
 
 	it("with polish off: Off is lit", () => {
-		const { sheet } = draw(ready({ polish: { text: "tell fleo hello", level: "off", ran: true } }, "tell fleo hello"));
+		const { sheet } = draw(ready({ polish: { text: "tell vekso hello", level: "off", ran: true } }, "tell vekso hello"));
 		expect(seg(sheet)).toEqual(["Off*", "Light", "Full"]);
 	});
 
 	it("after a fallback: nothing is lit and one quiet line says why", () => {
-		const { sheet } = draw(ready({ polish: { text: "tell fleo hello", level: "light", ran: false, why: "Gemini took too long" } }, "tell fleo hello"));
+		const { sheet } = draw(ready({ polish: { text: "tell vekso hello", level: "light", ran: false, why: "Gemini took too long" } }, "tell vekso hello"));
 		expect(seg(sheet)).toEqual(["Off", "Light", "Full"]);
 		expect(find(sheet, "spoken-note")!.text).toBe("Polish did not run: Gemini took too long. This is the transcript as heard.");
 		expect(find(sheet, "spoken-note")!.cls).not.toContain("is-error");
@@ -294,7 +294,7 @@ describe("Polish on the Ready sheet", () => {
 
 describe("Links on the Ready sheet", () => {
 	const linked = (on: boolean, extra: Partial<Extract<Phase, { kind: "ready" }>> = {}) =>
-		ready({ polish: { text: "Tell Flio hello.", level: "light", ran: true }, links: on, ...extra }, on ? "Tell [[Flio|the Flio team]] hello." : "Tell Flio hello.");
+		ready({ polish: { text: "Tell Vexo hello.", level: "light", ran: true }, links: on, ...extra }, on ? "Tell [[Vexo|the Vexo team]] hello." : "Tell Vexo hello.");
 
 	it("with Links off in settings there is no toggle", () => {
 		expect(find(draw(ready()).sheet, "spoken-link")).toBeUndefined();
@@ -323,7 +323,7 @@ describe("Links on the Ready sheet", () => {
 
 	it("the words show the brackets as they will insert, and the count ignores them", () => {
 		const { sheet } = draw(linked(true));
-		expect(find(sheet, "spoken-text")!.text).toBe("Tell [[Flio|the Flio team]] hello.");
+		expect(find(sheet, "spoken-text")!.text).toBe("Tell [[Vexo|the Vexo team]] hello.");
 		expect(find(sheet, "spoken-facts")!.text).toBe("3 words · 0:42");
 	});
 

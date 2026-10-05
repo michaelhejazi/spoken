@@ -89,10 +89,10 @@ function setup(
 	const session = new DictationSession({
 		recorders: mediaRecorderFactory(() => mic.env),
 		transcriber: tx.t,
-		terms: opts.terms ?? (() => ["Simin", "Flyo"]),
+		terms: opts.terms ?? (() => ["Quillmate", "Vecso"]),
 		polisher: opts.polisher ?? { polish: () => Promise.reject(new Error("Polish is off in this test")) },
 		polishLevel: () => opts.polish ?? "off",
-		polishTerms: () => ["Simin", "Flyo", "Flio"],
+		polishTerms: () => ["Quillmate", "Vecso", "Vexo"],
 		links: opts.links ?? (() => false),
 		linkPhrases: opts.phrases ?? (() => []),
 		capMs: CAP,
@@ -121,7 +121,7 @@ describe("the sheet's session, through every way out", () => {
 		expect(s.time.running()).toBe(0);
 		expect(s.tx.calls).toHaveLength(1);
 		expect(s.tx.calls[0].mimeType).toBe("audio/webm;codecs=opus");
-		expect(s.tx.calls[0].terms).toEqual(["Simin", "Flyo"]);
+		expect(s.tx.calls[0].terms).toEqual(["Quillmate", "Vecso"]);
 		expect(s.session.phase).toEqual({ kind: "cleaning", durationMs: 22_000, terms: 2 });
 
 		s.tx.calls[0].resolve({ text: "Walked the ridge.", biased: true });
@@ -302,7 +302,7 @@ describe("the terms are read when the take is sent", () => {
 	});
 
 	it("the first take's cleaning sheet is drawn with that take's count, and so is every take after (issue #1)", async () => {
-		let note = ["Simin", "Flyo", "Ridge"];
+		let note = ["Quillmate", "Vecso", "Ridge"];
 		const s = setup({ terms: async () => note });
 		const counts: Array<number | null> = [];
 		s.session.onChange((p) => p.kind === "cleaning" && counts.push(p.terms));
@@ -314,7 +314,7 @@ describe("the terms are read when the take is sent", () => {
 		s.tx.calls[0].resolve({ text: "One.", biased: true });
 		await flush();
 
-		note = ["Simin"];
+		note = ["Quillmate"];
 		counts.length = 0;
 		await s.session.retake();
 		s.time.advance(5_000);
@@ -531,7 +531,7 @@ describe("Polish, between cleaning and ready", () => {
 		s.time.advance(10_000);
 		const stopping = s.session.stop();
 		await flush();
-		s.tx.calls[0].resolve({ text: "tell fleo hello", biased: true });
+		s.tx.calls[0].resolve({ text: "tell vekso hello", biased: true });
 		await flush();
 		return { ...s, pol, stopping };
 	}
@@ -540,10 +540,10 @@ describe("Polish, between cleaning and ready", () => {
 		const s = await toPolishing("light");
 		expect(s.session.phase).toEqual({ kind: "polishing", durationMs: 10_000, level: "light" });
 		expect(s.pol.calls).toHaveLength(1);
-		expect(s.pol.calls[0]).toMatchObject({ text: "tell fleo hello", level: "light", terms: ["Simin", "Flyo", "Flio"] });
-		s.pol.calls[0].resolve("Tell Flio hello.");
+		expect(s.pol.calls[0]).toMatchObject({ text: "tell vekso hello", level: "light", terms: ["Quillmate", "Vecso", "Vexo"] });
+		s.pol.calls[0].resolve("Tell Vexo hello.");
 		await s.stopping;
-		expect(s.session.phase).toMatchObject({ kind: "ready", text: "Tell Flio hello.", biased: true, polish: { level: "light", ran: true } });
+		expect(s.session.phase).toMatchObject({ kind: "ready", text: "Tell Vexo hello.", biased: true, polish: { level: "light", ran: true } });
 		expect(s.phases.filter((k, i) => k !== s.phases[i - 1])).toEqual(["starting", "recording", "cleaning", "polishing", "ready"]);
 	});
 
@@ -553,7 +553,7 @@ describe("Polish, between cleaning and ready", () => {
 		await s.stopping;
 		expect(s.session.phase).toMatchObject({
 			kind: "ready",
-			text: "tell fleo hello",
+			text: "tell vekso hello",
 			polish: { level: "full", ran: false, why: "Gemini took too long" },
 		});
 	});
@@ -561,25 +561,25 @@ describe("Polish, between cleaning and ready", () => {
 	it("Skip while polishing shows the transcript at once, and the late answer is ignored", async () => {
 		const s = await toPolishing("light");
 		s.session.skipPolish();
-		expect(s.session.phase).toMatchObject({ kind: "ready", text: "tell fleo hello", polish: { ran: false, why: WHY_SKIPPED } });
-		s.pol.calls[0].resolve("Tell Flio hello.");
+		expect(s.session.phase).toMatchObject({ kind: "ready", text: "tell vekso hello", polish: { ran: false, why: WHY_SKIPPED } });
+		s.pol.calls[0].resolve("Tell Vexo hello.");
 		await s.stopping;
-		expect(s.session.phase).toMatchObject({ kind: "ready", text: "tell fleo hello" });
+		expect(s.session.phase).toMatchObject({ kind: "ready", text: "tell vekso hello" });
 	});
 
 	it("another level re-polishes the kept transcript: no re-recording, no re-transcribing", async () => {
 		const s = await toPolishing("light");
-		s.pol.calls[0].resolve("Tell Flio hello.");
+		s.pol.calls[0].resolve("Tell Vexo hello.");
 		await s.stopping;
 		const again = s.session.repolish("full");
 		expect(s.session.phase).toEqual({ kind: "polishing", durationMs: 10_000, level: "full" });
 		await flush();
-		expect(s.pol.calls[1]).toMatchObject({ text: "tell fleo hello", level: "full" });
-		s.pol.calls[1].resolve("Tell Flio hello!");
+		expect(s.pol.calls[1]).toMatchObject({ text: "tell vekso hello", level: "full" });
+		s.pol.calls[1].resolve("Tell Vexo hello!");
 		await again;
-		expect(s.session.phase).toMatchObject({ kind: "ready", text: "Tell Flio hello!", polish: { level: "full", ran: true } });
+		expect(s.session.phase).toMatchObject({ kind: "ready", text: "Tell Vexo hello!", polish: { level: "full", ran: true } });
 		await s.session.repolish("off");
-		expect(s.session.phase).toMatchObject({ kind: "ready", text: "tell fleo hello", polish: { level: "off", ran: true } });
+		expect(s.session.phase).toMatchObject({ kind: "ready", text: "tell vekso hello", polish: { level: "off", ran: true } });
 		expect(s.tx.calls).toHaveLength(1);
 		expect(s.mic.recorders).toHaveLength(1);
 	});
@@ -594,7 +594,7 @@ describe("Polish, between cleaning and ready", () => {
 
 	it("the kept transcript goes at Discard: nothing is left to re-polish", async () => {
 		const s = await toPolishing("light");
-		s.pol.calls[0].resolve("Tell Flio hello.");
+		s.pol.calls[0].resolve("Tell Vexo hello.");
 		await s.stopping;
 		s.session.close();
 		await s.session.repolish("full");
@@ -605,7 +605,7 @@ describe("Polish, between cleaning and ready", () => {
 	it("Cancel while polishing closes, and the late answer is ignored", async () => {
 		const s = await toPolishing("light");
 		s.session.close();
-		s.pol.calls[0].resolve("Tell Flio hello.");
+		s.pol.calls[0].resolve("Tell Vexo hello.");
 		await s.stopping;
 		expect(s.session.phase.kind).toBe("closed");
 	});
@@ -615,7 +615,7 @@ describe("Links, applied last", () => {
 	async function toReady(opts: { links?: boolean; phrases?: () => Phrase[] | Promise<Phrase[]>; polish?: PolishLevel } = {}) {
 		const pol = fakePolisher();
 		let reads = 0;
-		const phrases = opts.phrases ?? (() => [{ target: "Flio", aliases: ["fleo"] }]);
+		const phrases = opts.phrases ?? (() => [{ target: "Vexo", aliases: ["vekso"] }]);
 		const s = setup({
 			polish: opts.polish ?? "light",
 			polisher: pol.p,
@@ -626,38 +626,38 @@ describe("Links, applied last", () => {
 		s.time.advance(10_000);
 		const stopping = s.session.stop();
 		await flush();
-		s.tx.calls[0].resolve({ text: "tell fleo hello", biased: true });
+		s.tx.calls[0].resolve({ text: "tell vekso hello", biased: true });
 		await flush();
 		return { ...s, pol, stopping, reads: () => reads };
 	}
 
 	it("with Links on, the polished words are linked, and the toggle is lit", async () => {
 		const s = await toReady();
-		s.pol.calls[0].resolve("Tell Flio hello.");
+		s.pol.calls[0].resolve("Tell Vexo hello.");
 		await s.stopping;
-		expect(s.session.phase).toMatchObject({ kind: "ready", text: "Tell [[Flio]] hello.", links: true, polish: { text: "Tell Flio hello." } });
+		expect(s.session.phase).toMatchObject({ kind: "ready", text: "Tell [[Vexo]] hello.", links: true, polish: { text: "Tell Vexo hello." } });
 		expect(s.reads()).toBe(1);
 	});
 
 	it("with Links off, the note is never read and the sheet has no toggle", async () => {
 		const s = await toReady({ links: false });
-		s.pol.calls[0].resolve("Tell Flio hello.");
+		s.pol.calls[0].resolve("Tell Vexo hello.");
 		await s.stopping;
-		expect(s.session.phase).toMatchObject({ kind: "ready", text: "Tell Flio hello." });
+		expect(s.session.phase).toMatchObject({ kind: "ready", text: "Tell Vexo hello." });
 		expect(s.session.phase).not.toHaveProperty("links");
 		expect(s.reads()).toBe(0);
 		s.session.setLinks(true);
-		expect(s.session.phase).toMatchObject({ text: "Tell Flio hello." });
+		expect(s.session.phase).toMatchObject({ text: "Tell Vexo hello." });
 	});
 
 	it("the toggle redraws the same words with or without links, calling nothing", async () => {
 		const s = await toReady();
-		s.pol.calls[0].resolve("Tell Flio hello.");
+		s.pol.calls[0].resolve("Tell Vexo hello.");
 		await s.stopping;
 		s.session.setLinks(false);
-		expect(s.session.phase).toMatchObject({ kind: "ready", text: "Tell Flio hello.", links: false });
+		expect(s.session.phase).toMatchObject({ kind: "ready", text: "Tell Vexo hello.", links: false });
 		s.session.setLinks(true);
-		expect(s.session.phase).toMatchObject({ kind: "ready", text: "Tell [[Flio]] hello.", links: true });
+		expect(s.session.phase).toMatchObject({ kind: "ready", text: "Tell [[Vexo]] hello.", links: true });
 		expect(s.tx.calls).toHaveLength(1);
 		expect(s.pol.calls).toHaveLength(1);
 		expect(s.reads()).toBe(1);
@@ -665,45 +665,45 @@ describe("Links, applied last", () => {
 
 	it("a re-polish is linked afresh, and the toggle keeps its place", async () => {
 		const s = await toReady();
-		s.pol.calls[0].resolve("Tell Flio hello.");
+		s.pol.calls[0].resolve("Tell Vexo hello.");
 		await s.stopping;
 		await s.session.repolish("off");
-		expect(s.session.phase).toMatchObject({ text: "tell [[Flio|fleo]] hello", links: true, polish: { level: "off" } });
+		expect(s.session.phase).toMatchObject({ text: "tell [[Vexo|vekso]] hello", links: true, polish: { level: "off" } });
 		s.session.setLinks(false);
 		const again = s.session.repolish("full");
 		await flush();
-		s.pol.calls[1].resolve("Tell Flio hello!");
+		s.pol.calls[1].resolve("Tell Vexo hello!");
 		await again;
-		expect(s.session.phase).toMatchObject({ text: "Tell Flio hello!", links: false });
+		expect(s.session.phase).toMatchObject({ text: "Tell Vexo hello!", links: false });
 	});
 
 	it("Polish off: the transcript as heard is linked", async () => {
 		const s = await toReady({ polish: "off" });
 		await s.stopping;
-		expect(s.session.phase).toMatchObject({ kind: "ready", text: "tell [[Flio|fleo]] hello", links: true });
+		expect(s.session.phase).toMatchObject({ kind: "ready", text: "tell [[Vexo|vekso]] hello", links: true });
 	});
 
 	it("a note that can't be read means no links, never a failed take", async () => {
 		const s = await toReady({ phrases: () => Promise.reject(new Error("gone")) });
-		s.pol.calls[0].resolve("Tell Flio hello.");
+		s.pol.calls[0].resolve("Tell Vexo hello.");
 		await s.stopping;
-		expect(s.session.phase).toMatchObject({ kind: "ready", text: "Tell Flio hello.", links: true });
+		expect(s.session.phase).toMatchObject({ kind: "ready", text: "Tell Vexo hello.", links: true });
 	});
 
 	it("the note is read afresh for every take", async () => {
-		let note: Phrase[] = [{ target: "Flio", aliases: [] }];
+		let note: Phrase[] = [{ target: "Vexo", aliases: [] }];
 		const s = await toReady({ polish: "off", phrases: () => note });
 		await s.stopping;
-		expect(s.session.phase).toMatchObject({ text: "tell fleo hello" });
+		expect(s.session.phase).toMatchObject({ text: "tell vekso hello" });
 		note = [{ target: "Hello", aliases: [] }];
 		const retaking = s.session.retake();
 		await retaking;
 		s.time.advance(5_000);
 		const stopping = s.session.stop();
 		await flush();
-		s.tx.calls[1].resolve({ text: "tell fleo hello", biased: true });
+		s.tx.calls[1].resolve({ text: "tell vekso hello", biased: true });
 		await stopping;
-		expect(s.session.phase).toMatchObject({ text: "tell fleo [[Hello]]" });
+		expect(s.session.phase).toMatchObject({ text: "tell vekso [[Hello|hello]]" });
 		expect(s.reads()).toBe(2);
 	});
 });

@@ -3,9 +3,9 @@ import { MAX_ENCODED_BYTES, MAX_TERMS, buildTerms, encodeTerms } from "../src/vo
 
 describe("the vocabulary sent with a take", () => {
 	it("puts the terms note's list first, then the note title, then its headings", () => {
-		expect(buildTerms(["Simin", "Flyo"], "Trail notes", ["Ridge loop", "Next"])).toEqual([
-			"Simin",
-			"Flyo",
+		expect(buildTerms(["Quillmate", "Vecso"], "Trail notes", ["Ridge loop", "Next"])).toEqual([
+			"Quillmate",
+			"Vecso",
 			"Trail notes",
 			"Ridge loop",
 			"Next",
@@ -13,13 +13,13 @@ describe("the vocabulary sent with a take", () => {
 	});
 
 	it("keeps each term once regardless of case, the first spelling winning", () => {
-		expect(buildTerms(["Flyo", "flyo"], "FLYO", ["Trail", "trail"])).toEqual(["Flyo", "Trail"]);
+		expect(buildTerms(["Vecso", "vecso"], "VECSO", ["Trail", "trail"])).toEqual(["Vecso", "Trail"]);
 	});
 
 	it("drops blank lines, trims, and drops terms over 80 characters", () => {
 		const long = "x".repeat(81);
 		const edge = "y".repeat(80);
-		expect(buildTerms(["  Simin ", "", "\r", long, edge], null, [])).toEqual(["Simin", edge]);
+		expect(buildTerms(["  Quillmate ", "", "\r", long, edge], null, [])).toEqual(["Quillmate", edge]);
 	});
 
 	it("caps the list at 100 terms, cut from the end", () => {

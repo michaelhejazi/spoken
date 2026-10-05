@@ -30,8 +30,8 @@ function memoryStore(files: Record<string, string> = {}): NoteStore & { files: R
 describe("the terms note", () => {
 	it("parses the fixture: frontmatter, headings, comments and blank lines ignored, list markers stripped, commas split", () => {
 		expect(parseTermsNote(fixture)).toEqual([
-			"Simin",
-			"Dariush Mehrjui",
+			"Quillmate",
+			"Ilka Brannmoor",
 			"Anaïs",
 			"Tochal",
 			"Darband",
@@ -39,7 +39,7 @@ describe("the terms note", () => {
 			"Shemiran",
 			"Readwise",
 			"Obsidian",
-			"Flyo",
+			"Vecso",
 			"WebM",
 			"Opus",
 			"Gödel–Escher–Bach",
@@ -57,24 +57,24 @@ describe("the terms note", () => {
 
 	it("ignores the two explanatory lines a created note starts with", () => {
 		expect(parseTermsNote(NOTE_HEADER)).toEqual([]);
-		expect(parseTermsNote(NOTE_HEADER + "\nSimin\n")).toEqual(["Simin"]);
+		expect(parseTermsNote(NOTE_HEADER + "\nQuillmate\n")).toEqual(["Quillmate"]);
 	});
 
 	it("reads CRLF notes, and a note with no frontmatter whose first line is a term", () => {
-		expect(parseTermsNote("Simin\r\n- Flyo\r\n")).toEqual(["Simin", "Flyo"]);
+		expect(parseTermsNote("Quillmate\r\n- Vecso\r\n")).toEqual(["Quillmate", "Vecso"]);
 	});
 
 	it("keeps a line of dashes after the top when there is no closing fence", () => {
-		expect(parseTermsNote("---\nSimin")).toEqual(["---", "Simin"]);
+		expect(parseTermsNote("---\nQuillmate")).toEqual(["---", "Quillmate"]);
 	});
 
 	it("is read fresh each time, and is empty when the note is missing", async () => {
 		const store = memoryStore();
 		expect(await readTermsNote(store, DEFAULT_TERMS_PATH)).toEqual([]);
-		store.files[DEFAULT_TERMS_PATH] = "Simin";
-		expect(await readTermsNote(store, DEFAULT_TERMS_PATH)).toEqual(["Simin"]);
-		store.files[DEFAULT_TERMS_PATH] = "Simin\nFlyo";
-		expect(await readTermsNote(store, DEFAULT_TERMS_PATH)).toEqual(["Simin", "Flyo"]);
+		store.files[DEFAULT_TERMS_PATH] = "Quillmate";
+		expect(await readTermsNote(store, DEFAULT_TERMS_PATH)).toEqual(["Quillmate"]);
+		store.files[DEFAULT_TERMS_PATH] = "Quillmate\nVecso";
+		expect(await readTermsNote(store, DEFAULT_TERMS_PATH)).toEqual(["Quillmate", "Vecso"]);
 	});
 
 	it("turns the setting into a vault path ending in .md", () => {
@@ -96,23 +96,23 @@ describe("the terms note", () => {
 describe("moving 0.1.x's in-settings terms", () => {
 	it("no note yet: writes the old list into a new note once and drops it from settings", async () => {
 		const store = memoryStore();
-		const settings: { terms?: string } = { terms: "Simin\n\n  Flyo \nTochal\n" };
+		const settings: { terms?: string } = { terms: "Quillmate\n\n  Vecso \nTochal\n" };
 		expect(await moveOldTerms(settings, store, DEFAULT_TERMS_PATH)).toBe("moved into the note");
 		expect(settings.terms).toBeUndefined();
-		expect(store.files[DEFAULT_TERMS_PATH]).toBe(NOTE_HEADER + "\nSimin\nFlyo\nTochal\n");
-		expect(parseTermsNote(store.files[DEFAULT_TERMS_PATH])).toEqual(["Simin", "Flyo", "Tochal"]);
+		expect(store.files[DEFAULT_TERMS_PATH]).toBe(NOTE_HEADER + "\nQuillmate\nVecso\nTochal\n");
+		expect(parseTermsNote(store.files[DEFAULT_TERMS_PATH])).toEqual(["Quillmate", "Vecso", "Tochal"]);
 
 		// Once: a second load has nothing to move and leaves the note alone.
 		store.files[DEFAULT_TERMS_PATH] += "Darband\n";
 		expect(await moveOldTerms(settings, store, DEFAULT_TERMS_PATH)).toBe("nothing to move");
-		expect(parseTermsNote(store.files[DEFAULT_TERMS_PATH])).toEqual(["Simin", "Flyo", "Tochal", "Darband"]);
+		expect(parseTermsNote(store.files[DEFAULT_TERMS_PATH])).toEqual(["Quillmate", "Vecso", "Tochal", "Darband"]);
 	});
 
 	it("the note exists: touches neither, and the old list stays in settings", async () => {
 		const store = memoryStore({ [DEFAULT_TERMS_PATH]: "Already here\n" });
-		const settings: { terms?: string } = { terms: "Simin\nFlyo" };
+		const settings: { terms?: string } = { terms: "Quillmate\nVecso" };
 		expect(await moveOldTerms(settings, store, DEFAULT_TERMS_PATH)).toBe("kept: the note already exists");
-		expect(settings.terms).toBe("Simin\nFlyo");
+		expect(settings.terms).toBe("Quillmate\nVecso");
 		expect(store.files[DEFAULT_TERMS_PATH]).toBe("Already here\n");
 	});
 

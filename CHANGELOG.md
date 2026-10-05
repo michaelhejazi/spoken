@@ -7,6 +7,16 @@ GitHub release with `main.js`, `manifest.json` and `styles.css` attached.
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-10-05
+
+### Changed
+
+- A link never changes how the words read. Only words that are the note's
+  name exactly become a bare `[[Target]]`; any other wording, a difference
+  of case included, is written `[[Target|words as said]]`, so "the
+  onboarding calls" mid-sentence stays lower-case in reading view.
+- The tests' and fixtures' example names are made up now.
+
 ## [0.7.0] - 2026-10-05
 
 ### Added
@@ -241,7 +251,8 @@ the repository's public history.
 - Retake, Discard and Try again; a failed take is kept with a sentence saying
   why.
 
-[Unreleased]: https://github.com/michaelhejazi/spoken/compare/0.7.0...HEAD
+[Unreleased]: https://github.com/michaelhejazi/spoken/compare/0.7.1...HEAD
+[0.7.1]: https://github.com/michaelhejazi/spoken/compare/0.7.0...0.7.1
 [0.7.0]: https://github.com/michaelhejazi/spoken/compare/0.6.0...0.7.0
 [0.6.0]: https://github.com/michaelhejazi/spoken/compare/0.5.0...0.6.0
 [0.5.0]: https://github.com/michaelhejazi/spoken/compare/0.4.0...0.5.0

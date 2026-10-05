@@ -681,13 +681,10 @@ h1 { font-size: 15px; font-weight: 600; margin: 0; }
       if (linked.has(key)) continue;
       linked.add(key);
       const said = text.slice(m.start, m.end);
-      out += text.slice(at, m.start) + (same(said, m.target) ? `[[${m.target}]]` : `[[${m.target}|${said}]]`);
+      out += text.slice(at, m.start) + (said === m.target ? `[[${m.target}]]` : `[[${m.target}|${said}]]`);
       at = m.end;
     }
     return out + text.slice(at);
-  }
-  function same(a, b) {
-    return a.toLocaleLowerCase() === b.toLocaleLowerCase();
   }
   function escape(s) {
     return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

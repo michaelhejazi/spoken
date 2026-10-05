@@ -68,8 +68,13 @@ describe("the link phrases note", () => {
 });
 
 describe("linkText: deterministic and conservative", () => {
-	it("case-insensitive: [[Target]] when the words said are the target in any case", () => {
-		expect(linkText("Walked the RIDGE LOOP today.", [p("Ridge loop")])).toBe("Walked the [[Ridge loop]] today.");
+	it("an exact match stays bare: [[Target]]", () => {
+		expect(linkText("Walked the Ridge loop today.", [p("Ridge loop")])).toBe("Walked the [[Ridge loop]] today.");
+	});
+
+	it("matching ignores case, but the words keep theirs: [[Target|words as said]] when only case differs", () => {
+		expect(linkText("Walked the RIDGE LOOP today.", [p("Ridge loop")])).toBe("Walked the [[Ridge loop|RIDGE LOOP]] today.");
+		expect(linkText("Booked the onboarding calls.", [p("Onboarding calls")])).toBe("Booked the [[Onboarding calls|onboarding calls]].");
 	});
 
 	it("an alias said: [[Target|words as said]]", () => {
@@ -78,18 +83,18 @@ describe("linkText: deterministic and conservative", () => {
 
 	it("whole words only", () => {
 		expect(linkText("Ridged, unridge, ridgeline, ridge_x, ridge2.", [p("Ridge")])).toBe("Ridged, unridge, ridgeline, ridge_x, ridge2.");
-		expect(linkText("A ridge, then (ridge).", [p("Ridge")])).toBe("A [[Ridge]], then (ridge).");
+		expect(linkText("A ridge, then (ridge).", [p("Ridge")])).toBe("A [[Ridge|ridge]], then (ridge).");
 	});
 
 	it("a possessive 's or plural s is tolerated and kept outside the brackets", () => {
 		expect(linkText("Quillmate's pricing.", [p("Quillmate")])).toBe("[[Quillmate]]'s pricing.");
 		expect(linkText("Quillmate’s pricing.", [p("Quillmate")])).toBe("[[Quillmate]]’s pricing.");
-		expect(linkText("Two ridges.", [p("Ridge")])).toBe("Two [[Ridge]]s.");
+		expect(linkText("Two ridges.", [p("Ridge")])).toBe("Two [[Ridge|ridge]]s.");
 		expect(linkText("The loop's end.", [p("Ridge loop", "the loop")])).toBe("[[Ridge loop|The loop]]'s end.");
 	});
 
 	it("longest match first: a longer target wins over a shorter one inside it", () => {
-		expect(linkText("The ridge loop.", [p("Ridge"), p("Ridge loop")])).toBe("The [[Ridge loop]].");
+		expect(linkText("The ridge loop.", [p("Ridge"), p("Ridge loop")])).toBe("The [[Ridge loop|ridge loop]].");
 	});
 
 	it("one target's alias never links inside a longer target that matched, even where that one isn't linked again", () => {
@@ -107,7 +112,7 @@ describe("linkText: deterministic and conservative", () => {
 
 	it("nothing inside existing [[links]] or embeds is touched", () => {
 		expect(linkText("See [[Ridge loop notes]] and ![[ridge loop.png]], then ridge loop.", [p("Ridge loop")])).toBe(
-			"See [[Ridge loop notes]] and ![[ridge loop.png]], then [[Ridge loop]].",
+			"See [[Ridge loop notes]] and ![[ridge loop.png]], then [[Ridge loop|ridge loop]].",
 		);
 	});
 

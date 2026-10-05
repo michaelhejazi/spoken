@@ -1,6 +1,6 @@
 {
   "name": "spoken",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Obsidian plugin: speak into a note on phone or desktop and get clean text at the cursor, transcribed by Gemini under your own API key.",
   "keywords": [
     "obsidian",

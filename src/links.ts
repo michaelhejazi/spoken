@@ -86,9 +86,10 @@ interface Match {
 
 /**
  * The text with the first mention of each target linked: `[[Target]]` when
- * the words said are the target's name in any case, `[[Target|words said]]`
- * otherwise. Matching ignores case and holds to whole words; a trailing 's
- * or s is allowed and left outside the link. Longer phrases are matched
+ * the words said are the target's name exactly, `[[Target|words said]]`
+ * otherwise, case included, so a link never changes how the words read.
+ * Matching ignores case and holds to whole words; a trailing 's or s is
+ * allowed and left outside the link. Longer phrases are matched
  * first, and nothing shorter links inside a longer one, linked or not.
  * Existing links, code and URLs are left alone.
  */
@@ -140,7 +141,7 @@ export function linkText(text: string, phrases: Phrase[]): string {
 		if (linked.has(key)) continue;
 		linked.add(key);
 		const said = text.slice(m.start, m.end);
-		out += text.slice(at, m.start) + (same(said, m.target) ? `[[${m.target}]]` : `[[${m.target}|${said}]]`);
+		out += text.slice(at, m.start) + (said === m.target ? `[[${m.target}]]` : `[[${m.target}|${said}]]`);
 		at = m.end;
 	}
 	return out + text.slice(at);

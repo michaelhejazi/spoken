@@ -46,7 +46,7 @@ const googleError = (code: number, status: string, message: string) => ({ error:
 
 describe("the request to Gemini's interactions endpoint", () => {
 	it("sends the key, the model, the audio in base64 and the terms as custom_vocabulary in smart mode", async () => {
-		const terms = ["Simin", "Flyo", "café & co"];
+		const terms = ["Quillmate", "Vecso", "café & co"];
 		const res = await gemini().transcribe(audio, "audio/webm;codecs=opus", terms);
 		expect(res).toEqual({ text: "Fake transcript of 8 bytes of audio/webm.", biased: true });
 
@@ -60,7 +60,7 @@ describe("the request to Gemini's interactions endpoint", () => {
 			model: "gemini-3.5-transcribe",
 			input: [{ type: "audio", mime_type: "audio/webm", data: "AQIDBAX6+/w=" }],
 			generation_config: {
-				transcription_config: { mode: "smart", custom_vocabulary: ["Simin", "Flyo", "café & co"] },
+				transcription_config: { mode: "smart", custom_vocabulary: ["Quillmate", "Vecso", "café & co"] },
 			},
 		});
 	});
@@ -111,11 +111,11 @@ describe("the vocabulary fallback", () => {
 	it("when Gemini refuses the vocabulary, resends once without the terms and reports biased false", async () => {
 		fake.rejectVocabulary = true;
 		const before = fake.requests.length;
-		const res = await gemini().transcribe(audio, "audio/webm", ["Simin"]);
+		const res = await gemini().transcribe(audio, "audio/webm", ["Quillmate"]);
 		expect(res).toEqual({ text: "Fake transcript of 8 bytes of audio/webm.", biased: false });
 		const sent = fake.requests.slice(before);
 		expect(sent).toHaveLength(2);
-		expect(sent[0].json.generation_config.transcription_config).toEqual({ mode: "smart", custom_vocabulary: ["Simin"] });
+		expect(sent[0].json.generation_config.transcription_config).toEqual({ mode: "smart", custom_vocabulary: ["Quillmate"] });
 		expect(sent[1].json.generation_config.transcription_config).toEqual({ mode: "smart" });
 		expect(sent[1].json.input).toEqual(sent[0].json.input);
 	});
@@ -124,7 +124,7 @@ describe("the vocabulary fallback", () => {
 		const before = fake.requests.length;
 		fake.respondNext(400, googleError(400, "INVALID_ARGUMENT", "Bad custom_vocabulary."));
 		fake.respondNext(429, googleError(429, "RESOURCE_EXHAUSTED", "Quota exceeded."));
-		const e = await failure(gemini().transcribe(audio, "audio/webm", ["Simin"]));
+		const e = await failure(gemini().transcribe(audio, "audio/webm", ["Quillmate"]));
 		expect(e.message).toBe(RATE_LIMITED);
 		expect(fake.requests.length - before).toBe(2);
 	});
@@ -132,7 +132,7 @@ describe("the vocabulary fallback", () => {
 	it("does not resend a 400 that is about something else", async () => {
 		const before = fake.requests.length;
 		fake.respondNext(400, googleError(400, "INVALID_ARGUMENT", "Unsupported MIME type: audio/x-foo"));
-		const e = await failure(gemini().transcribe(audio, "audio/webm", ["Simin"]));
+		const e = await failure(gemini().transcribe(audio, "audio/webm", ["Quillmate"]));
 		expect(e.message).toBe("Gemini couldn't transcribe the recording: Unsupported MIME type: audio/x-foo");
 		expect(fake.requests.length - before).toBe(1);
 	});
@@ -140,7 +140,7 @@ describe("the vocabulary fallback", () => {
 
 describe("each way Gemini says no, as a sentence", () => {
 	it("a wrong key: Google's own 400 'API key not valid'", async () => {
-		const e = await failure(gemini("wrong-key").transcribe(audio, "audio/webm", ["Simin"]));
+		const e = await failure(gemini("wrong-key").transcribe(audio, "audio/webm", ["Quillmate"]));
 		expect(e.message).toBe(BAD_KEY);
 		expect(e.status).toBe(400);
 	});

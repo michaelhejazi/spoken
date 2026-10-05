@@ -8,8 +8,8 @@ aliases:
 
 # People
 
-- Simin
-* Dariush Mehrjui
+- Quillmate
+* Ilka Brannmoor
 + Anaïs
 
 ## Places
@@ -21,7 +21,7 @@ aliases:
 - [ ] Readwise
 - [x] Obsidian
 
-Flyo,  WebM , , Opus
+Vecso,  WebM , , Opus
 %%
 a multi-line comment
 that is ignored

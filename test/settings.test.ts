@@ -290,14 +290,14 @@ describe("the provider's fields", () => {
 	});
 
 	it("old terms kept because the note existed are shown, with Add to note and Forget", () => {
-		tab({ ...DEFAULT_SETTINGS, terms: "Simin\nFlyo\n" });
+		tab({ ...DEFAULT_SETTINGS, terms: "Quillmate\nVecso\n" });
 		const old = row("Names and terms from before 0.2");
 		expect(old.desc).toMatch(/^2 terms are still in this plugin's settings and not used/);
 		expect(old.controls.map((c) => c.value)).toEqual(["Add to note", "Forget"]);
 	});
 
 	it("Forget drops the old terms, saves, and the row goes", async () => {
-		const settings: Settings = { ...DEFAULT_SETTINGS, terms: "Simin\n" };
+		const settings: Settings = { ...DEFAULT_SETTINGS, terms: "Quillmate\n" };
 		const { t, plugin, refreshes } = tab(settings);
 		await row("Names and terms from before 0.2").controls[1].onClick!();
 		expect(settings.terms).toBeUndefined();
@@ -383,7 +383,7 @@ describe("settings search (Obsidian 1.13's declarative settings)", () => {
 	});
 
 	it("every row the tab can show is a named, searchable definition, including the hidden ones", () => {
-		const { t } = tab({ ...DEFAULT_SETTINGS, terms: "Simin" });
+		const { t } = tab({ ...DEFAULT_SETTINGS, terms: "Quillmate" });
 		const defs = t.getSettingDefinitions();
 		const declared = defs.map((d) => ("name" in d ? d.name : ""));
 		expect(declared).toEqual([
@@ -402,7 +402,7 @@ describe("settings search (Obsidian 1.13's declarative settings)", () => {
 	});
 
 	it("a drawn row's name and description, which search reads from the definition, are the ones it draws", () => {
-		for (const settings of [{ ...DEFAULT_SETTINGS }, { ...DEFAULT_SETTINGS, terms: "Simin" }]) {
+		for (const settings of [{ ...DEFAULT_SETTINGS }, { ...DEFAULT_SETTINGS, terms: "Quillmate" }]) {
 			const { t } = tab(settings);
 			const declared = t.getSettingDefinitions().filter((d) => "name" in d && "render" in d && names().includes(d.name));
 			expect(declared.length).toBeGreaterThan(0);

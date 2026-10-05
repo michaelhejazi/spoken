@@ -53,8 +53,8 @@ describe("insert at the cursor", () => {
 
 	it("lands after a space with no extra space, mid-line", () => {
 		const f = fakeEditor(["Ask  today."], { line: 0, ch: 4 });
-		insertAtCursor(f.editor, "Simin");
-		expect(f.lines[0]).toBe("Ask Simin today.");
+		insertAtCursor(f.editor, "Quillmate");
+		expect(f.lines[0]).toBe("Ask Quillmate today.");
 	});
 
 	it("puts the cursor at the end of multi-line words", () => {
