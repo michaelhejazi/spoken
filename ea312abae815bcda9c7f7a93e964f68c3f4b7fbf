@@ -1,0 +1,8 @@
+release https://github.com/michaelhejazi/spoken/releases/tag/0.7.0
+asset main.js 46543 bytes
+asset manifest.json 364 bytes
+asset styles.css 11848 bytes
+sha256 92626301dad3c90be5afd3eea26c958d52dbf229a9d3e089b63e86330e3e30c9  main.js
+sha256 1bfb11f54c50bc7dd49fb499e99f7cdb2da790ecf0e0e4906d4fc90da03488e1  manifest.json
+sha256 e5d6622cedb2ea68409103fe9d9a3453adde27691796b653fff537a5e089c5f1  styles.css
+attestation https://github.com/michaelhejazi/spoken/attestations/52676362
