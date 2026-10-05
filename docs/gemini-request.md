@@ -21,7 +21,7 @@ Content-Type: application/json
   "model": "gemini-3.5-transcribe",
   "input": [{ "type": "audio", "mime_type": "audio/webm", "data": "<the take, base64>" }],
   "generation_config": {
-    "transcription_config": { "mode": "smart", "custom_vocabulary": ["Simin", "Flyo"] }
+    "transcription_config": { "mode": "smart", "custom_vocabulary": ["Quillmate", "Ridgeway Dental"] }
   }
 }
 ```
@@ -92,7 +92,7 @@ Content-Type: application/json
 {
   "model": "gemini-3.5-flash-lite",
   "system_instruction": "<polishPrompt(level)>",
-  "input": "<terms>\nSimin\nFlio\n…\n</terms>\n\n<transcript>\n…\n</transcript>",
+  "input": "<terms>\nQuillmate\nRidgeway Dental\n…\n</terms>\n\n<transcript>\n…\n</transcript>",
   "store": false
 }
 ```

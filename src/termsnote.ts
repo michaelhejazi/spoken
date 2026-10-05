@@ -18,8 +18,13 @@ export interface NoteStore {
 
 /** The setting as a vault path: trimmed, no leading slash, ending in .md. */
 export function termsPath(setting: string): string {
+	return notePath(setting) ?? DEFAULT_TERMS_PATH;
+}
+
+/** A path setting as a vault path, or null when it is blank. */
+export function notePath(setting: string): string | null {
 	const p = setting.trim().replace(/\\/g, "/").replace(/^\/+/, "");
-	if (!p) return DEFAULT_TERMS_PATH;
+	if (!p) return null;
 	return /\.md$/i.test(p) ? p : `${p}.md`;
 }
 
@@ -29,6 +34,19 @@ export function termsPath(setting: string): string {
  * stripped; a line with commas is several terms.
  */
 export function parseTermsNote(text: string): string[] {
+	return noteLines(text).flatMap(splitCommas);
+}
+
+/** A line's comma-separated parts, trimmed, the empty ones dropped. */
+export function splitCommas(line: string): string[] {
+	return line
+		.split(",")
+		.map((t) => t.trim())
+		.filter(Boolean);
+}
+
+/** The lines of a list note that hold something: everything parseTermsNote ignores taken out, list markers stripped. */
+export function noteLines(text: string): string[] {
 	const lines = text.split(/\r?\n/);
 	let i = 0;
 	if (lines[0]?.trim() === "---") {
@@ -54,8 +72,8 @@ export function parseTermsNote(text: string): string[] {
 		}
 		line = line.trim();
 		if (!line || /^#{1,6}(\s|$)/.test(line)) continue;
-		line = line.replace(/^(?:[-*+]|\d+[.)])\s+/, "").replace(/^\[.\]\s+/, "");
-		for (const term of line.split(",")) if (term.trim()) out.push(term.trim());
+		line = line.replace(/^(?:[-*+]|\d+[.)])\s+/, "").replace(/^\[.\]\s+/, "").trim();
+		if (line) out.push(line);
 	}
 	return out;
 }
@@ -70,8 +88,8 @@ export async function readTermsNote(store: NoteStore, path: string): Promise<str
 }
 
 /** Creates the note with its two explanatory lines, if it isn't there. */
-export async function ensureTermsNote(store: NoteStore, path: string): Promise<void> {
-	if (!(await store.exists(path))) await store.create(path, NOTE_HEADER);
+export async function ensureTermsNote(store: NoteStore, path: string, header = NOTE_HEADER): Promise<void> {
+	if (!(await store.exists(path))) await store.create(path, header);
 }
 
 export type TermsMove = "nothing to move" | "moved into the note" | "kept: the note already exists";

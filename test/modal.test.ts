@@ -81,7 +81,9 @@ vi.mock("obsidian", () => {
 		close() {}
 	}
 	class Stub {}
-	return { Modal, MarkdownView: Stub, Notice: Stub, TFile: Stub };
+	// Obsidian's icon helper: the icon's name is kept, for the test to see.
+	const setIcon = (parent: El, name: string) => void parent.children.push(el("svg", { cls: `lucide-${name}` }));
+	return { Modal, MarkdownView: Stub, Notice: Stub, TFile: Stub, setIcon };
 });
 
 const { DictateModal, selectedLevel } = await import("../src/modal");
@@ -120,8 +122,8 @@ function draw(p: Phase, polishLevel: PolishLevel = "light"): Drawn {
 	const modal = new DictateModal({} as never, target as never, { capMs: 120_000, polishLevel: () => polishLevel } as SessionDeps, 3, () => {});
 	const inside = modal as unknown as { render(p: Phase): void; hideChrome(): void; session: Record<string, unknown>; contentEl: El; modalEl: El };
 	const calls: string[] = [];
-	for (const name of ["stop", "retry", "retake", "repolish", "skipPolish"]) {
-		inside.session[name] = (arg?: string) => void calls.push(arg ? `${name}(${arg})` : name);
+	for (const name of ["stop", "retry", "retake", "repolish", "skipPolish", "setLinks"]) {
+		inside.session[name] = (arg?: string | boolean) => void calls.push(arg !== undefined ? `${name}(${arg})` : name);
 	}
 	inside.hideChrome();
 	inside.render(p);
@@ -290,6 +292,46 @@ describe("Polish on the Ready sheet", () => {
 	});
 });
 
+describe("Links on the Ready sheet", () => {
+	const linked = (on: boolean, extra: Partial<Extract<Phase, { kind: "ready" }>> = {}) =>
+		ready({ polish: { text: "Tell Flio hello.", level: "light", ran: true }, links: on, ...extra }, on ? "Tell [[Flio|the Flio team]] hello." : "Tell Flio hello.");
+
+	it("with Links off in settings there is no toggle", () => {
+		expect(find(draw(ready()).sheet, "spoken-link")).toBeUndefined();
+	});
+
+	it("lit: one link glyph at the right end of the meta line, after the levels", () => {
+		const { sheet } = draw(linked(true));
+		const end = find(find(sheet, "spoken-meta")!, "spoken-meta-end")!;
+		expect(end.children.map((c) => c.cls[0])).toEqual(["spoken-seg", "spoken-link"]);
+		const toggle = end.children[1];
+		expect(toggle.cls).toContain("is-active");
+		expect(toggle.attr["aria-pressed"]).toBe("true");
+		expect(toggle.children.map((c) => c.cls[0])).toEqual(["lucide-link"]);
+	});
+
+	it("unlit when this take's links are off; a tap asks for the other way", () => {
+		const off = draw(linked(false));
+		const toggle = find(off.sheet, "spoken-link")!;
+		expect(toggle.cls).not.toContain("is-active");
+		expect(toggle.attr["aria-pressed"]).toBe("false");
+		toggle.click();
+		const on = draw(linked(true));
+		find(on.sheet, "spoken-link")!.click();
+		expect([...off.calls, ...on.calls]).toEqual(["setLinks(true)", "setLinks(false)"]);
+	});
+
+	it("the words show the brackets as they will insert, and the count ignores them", () => {
+		const { sheet } = draw(linked(true));
+		expect(find(sheet, "spoken-text")!.text).toBe("Tell [[Flio|the Flio team]] hello.");
+		expect(find(sheet, "spoken-facts")!.text).toBe("3 words · 0:42");
+	});
+
+	it("with the note gone: no toggle, as no levels", () => {
+		expect(find(draw(linked(true, { targetGone: true })).sheet, "spoken-link")).toBeUndefined();
+	});
+});
+
 describe("styles.css and the playground", () => {
 	const css = readFileSync("styles.css", "utf8");
 
@@ -325,7 +367,7 @@ describe("styles.css and the playground", () => {
 	it("the built playground carries today's styles.css and draws every state", () => {
 		const page = readFileSync("design/playground/index.html", "utf8");
 		expect(page).toContain(css.replace(/<\/style/gi, "<\\/style"));
-		for (const name of ["Starting", "Recording, 30 s left", "Cleaning", "Cleaning, Polish off", "Polishing", "Ready, long", "Ready, short", "Ready, note gone", "Failed", "Unsupported"]) {
+		for (const name of ["Starting", "Recording, 30 s left", "Cleaning", "Cleaning, Polish off", "Polishing", "Ready, long", "Ready, links on", "Ready, links off", "Ready, short", "Ready, note gone", "Failed", "Unsupported"]) {
 			expect(page).toContain(`"${name}"`);
 		}
 	});

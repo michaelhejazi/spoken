@@ -9,7 +9,7 @@
 // them moves nothing; Ready, Failed and Unsupported grow to what their content
 // needs, up to a cap, and the change of height animates.
 
-import { App, Editor, MarkdownFileInfo, MarkdownView, Modal, Notice, TFile } from "obsidian";
+import { App, Editor, MarkdownFileInfo, MarkdownView, Modal, Notice, TFile, setIcon } from "obsidian";
 import { insertAtCursor } from "./insert";
 import { POLISH_LEVELS, PolishLevel, Polished } from "./polish";
 import { DictationSession, Phase, SessionDeps } from "./session";
@@ -161,9 +161,13 @@ export class DictateModal extends Modal {
 				this.textEl = body.createDiv({ cls: "spoken-text", text: p.text });
 				this.textEl.addEventListener("scroll", () => this.updateFade());
 				const meta = body.createDiv({ cls: "spoken-meta" });
-				meta.createSpan({ cls: "spoken-facts", text: `${words(p.text)} ${plural(words(p.text), "word")} · ${fmt(p.durationMs)}` });
+				// Counted without the brackets, so turning links on doesn't change it.
+				const n = words(p.polish.text);
+				meta.createSpan({ cls: "spoken-facts", text: `${n} ${plural(n, "word")} · ${fmt(p.durationMs)}` });
 				if (!p.targetGone) {
-					this.levelControl(meta, selectedLevel(p.polish));
+					const end = meta.createDiv({ cls: "spoken-meta-end" });
+					this.levelControl(end, selectedLevel(p.polish));
+					if (p.links !== undefined) this.linkToggle(end, p.links);
 					if (!p.polish.ran) body.createDiv({ cls: "spoken-note", text: `Polish did not run: ${p.polish.why}. This is the transcript as heard.` });
 					this.foot(foot, ["Insert", () => this.insert(p.text)], [
 						["Discard", () => this.close()],
@@ -308,6 +312,16 @@ export class DictateModal extends Modal {
 				if (!on) void this.session.repolish(level);
 			});
 		}
+	}
+
+	/** The link glyph: lit when this take's names are linked; a tap shows the words the other way, at once. */
+	private linkToggle(parent: HTMLElement, on: boolean): void {
+		const b = parent.createEl("button", {
+			cls: ["spoken-link", ...(on ? ["is-active"] : [])],
+			attr: { "aria-label": on ? "Links on" : "Links off", "aria-pressed": on ? "true" : "false" },
+		});
+		setIcon(b, "link");
+		b.addEventListener("click", () => this.session.setLinks(!on));
 	}
 
 	private updateRecording(p: Extract<Phase, { kind: "recording" }>): void {

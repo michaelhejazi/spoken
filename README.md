@@ -50,14 +50,32 @@ If Google can't be reached or says no, the sheet says why and keeps the recordin
 Names and terms you want spelled right go in `Dictation terms.md` (the path is a setting), one per line. It syncs with your vault like any note:
 
 ```markdown
-Simin
-Flyo
+Quillmate
+Ridgeway Dental
 Readwise, Obsidian
 - Dr. Okonkwo
 Kubernetes
 ```
 
 Headings, blank lines, `%% comments %%`, frontmatter and list markers are ignored, and a line with commas holds several terms. The note is read afresh on every take, the open note's title and headings are added, and at most 100 terms are sent with the recording. Polish reads every term in the note, however many there are.
+
+## Links
+
+Turn on **Links** in settings (it is off until you do) and Spoken links the names you say to notes in your vault. Each name in the link phrases note becomes a wiki-link the first time it comes up in a take: `[[Ridge loop]]`, or `[[Ridge loop|the loop]]` when you said it another way. The note doesn't have to exist yet. An unresolved link still shows in the graph, and it connects the day you make the note, so the more you dictate, the more of your graph builds itself.
+
+The phrases go in `Link phrases.md`, beside the terms note unless you set another path. One note name per line:
+
+```markdown
+Ridge loop | the loop, ridge trail
+Quillmate
+Sales deck, Onboarding calls
+```
+
+After a `|` come the other ways you say it, separated by commas. Without a `|`, commas separate several names, as in the terms note. A note's own `aliases` frontmatter counts too. Headings, blank lines, `%% comments %%`, frontmatter and list markers are ignored, and the note is read afresh on every take. If it's missing, settings says where it would be read from, and **Create** writes it with two comment lines explaining the format.
+
+Spoken puts the links in itself, over the final words after Polish (or over the transcript when Polish is off). No model is asked to, so no link is ever invented. Matching ignores case and goes by whole words: a trailing `'s` or plural `s` still matches and stays outside the brackets. The longest phrase wins, so `Ridgeway Dental` is never split into a link to `Ridgeway`. Nothing is linked inside an existing link, backticks, a Markdown link or a URL. Keep the terms note for names that should be spelled right but never linked.
+
+On the Ready sheet, a small link icon at the right end of the line under the words is lit while links are on for this take. Tap it to see the same words without links, or with them again, instantly. The words show the brackets exactly as they will be inserted.
 
 ## Polish
 
@@ -81,6 +99,8 @@ On the Ready sheet, a small Off · Light · Full control shows which level ran; 
 | Polish model | The Gemini text model that polishes. `gemini-3.5-flash-lite` by default. Check key checks it too. |
 | Longest recording | 1–15 minutes, 5 by default. The sheet turns amber thirty seconds before. |
 | Names and terms note | The note's path. **Open** opens it, creating it if it is missing. |
+| Links | Off by default. When on, the first mention of each name in the link phrases note becomes a wiki-link. See [Links](#links). |
+| Link phrases note | Shown while Links is on. The note's path, `Link phrases.md` beside the terms note by default. **Create** writes it if it is missing; **Open** opens it. |
 | Report a problem | Opens a GitHub issue with the plugin version, Obsidian version, platform and provider filled in. Never your key or a recording. |
 
 ## Haptics and the screen

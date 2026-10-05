@@ -5,6 +5,7 @@
 // between states redraws the open sheet, so a change of height animates as
 // it does in the app.
 
+import { Phrase, linkText } from "../../src/links";
 import { DictateModal } from "../../src/modal";
 import type { Phase, SessionDeps } from "../../src/session";
 import { App, Modal, TFile } from "./obsidian-stub";
@@ -12,14 +13,23 @@ import { App, Modal, TFile } from "./obsidian-stub";
 const CAP_MS = 5 * 60_000;
 const NOTE = "Trail notes — the one-customer question";
 
-const SHORT = "Call Simin back about the trial before Friday.";
+const SHORT = "Call the clinic back about the trial before Friday.";
 const LONG =
-	"Walked the ridge loop before the call with Simin. What I keep coming back to is the one-customer question. " +
-	"Flio has about ten practices paying; if I take the trial to year end at five to ten hours a week, the thing to decide first is which single practice we design for, not the equity.\n\n" +
+	"Walked the ridge loop before the onboarding call. What I keep coming back to is the one-customer question. " +
+	"Quillmate has about ten practices paying; if I take the trial to year end at five to ten hours a week, the thing to decide first is which single practice we design for, not the equity.\n\n" +
 	"Second thing: the onboarding call. Every practice asked the same three questions in the first ten minutes, and none of them were about price. " +
 	"They wanted to know who sees the recordings, whether the front desk has to change anything, and what happens when the internet drops in the middle of a day. " +
 	"If the answers to those fit on one page, that page is the sales deck.\n\n" +
-	"Last: book the dentist, and ask Lena whether the cabin is free the second weekend of November.";
+	"Last: book the dentist, and check whether the cabin is free the second weekend of November.";
+
+/** A link phrases note: one target with an alias, and the rest as plain names. */
+const PHRASES: Phrase[] = [
+	{ target: "Ridge loop", aliases: [] },
+	{ target: "Quillmate", aliases: [] },
+	{ target: "Onboarding calls", aliases: ["onboarding call"] },
+	{ target: "Sales deck", aliases: [] },
+	{ target: "One-customer question", aliases: [] },
+];
 
 interface State {
 	name: string;
@@ -46,6 +56,8 @@ const STATES: State[] = [
 	{ name: "Cleaning, Polish off", phase: { kind: "cleaning", durationMs: 42_000, terms: 12 }, polishOff: true },
 	{ name: "Polishing", phase: { kind: "polishing", durationMs: 42_000, level: "light" } },
 	{ name: "Ready, long", phase: ready(LONG) },
+	{ name: "Ready, links on", phase: ready(linkText(LONG, PHRASES), { polish: { text: LONG, level: "light", ran: true }, links: true }) },
+	{ name: "Ready, links off", phase: ready(LONG, { links: false }) },
 	{ name: "Ready, short", phase: ready(SHORT) },
 	{ name: "Ready, not polished", phase: ready(SHORT, { polish: { text: SHORT, level: "light", ran: false, why: "Gemini took too long" } }) },
 	{ name: "Ready, note gone", phase: ready(SHORT, { targetGone: true }) },
@@ -139,6 +151,13 @@ class Frame {
 		for (const name of ACTIONS) {
 			inside.session[name] = (arg?: string) => log(`Pressed: session.${name}(${arg ?? ""})`);
 		}
+		// The link toggle works here as in the app: the same words drawn again, with or without links.
+		inside.session.setLinks = (on: boolean) => {
+			const p = this.state?.phase;
+			if (p?.kind !== "ready") return;
+			log(`Pressed: session.setLinks(${on})`);
+			inside.render({ ...p, links: on, text: on ? linkText(p.polish.text, PHRASES) : p.polish.text });
+		};
 		return modal;
 	}
 }

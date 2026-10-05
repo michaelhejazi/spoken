@@ -1,10 +1,12 @@
 import { App, PluginSettingTab, Setting, SettingDefinitionItem } from "obsidian";
+import type { ButtonComponent } from "obsidian";
 import { DEFAULT_MODEL } from "./gemini";
 import { DEFAULT_POLISH_MODEL, POLISH_LEVELS, PolishLevel } from "./polish";
 import type SpokenPlugin from "./main";
 import { PROVIDERS, Provider, ProviderSettings, visibleProviders } from "./provider";
 import type { SignalPath } from "./signals";
-import { DEFAULT_TERMS_PATH } from "./termsnote";
+import { linksPath } from "./links";
+import { DEFAULT_TERMS_PATH, termsPath } from "./termsnote";
 
 export interface SpokenSettings extends ProviderSettings {
 	/** Longest recording, whole minutes 1–15. */
@@ -15,6 +17,10 @@ export interface SpokenSettings extends ProviderSettings {
 	polish: PolishLevel;
 	/** The Gemini text model that polishes. */
 	polishModel: string;
+	/** Links: the first mention of each phrase in the link phrases note becomes a wiki-link. */
+	links: boolean;
+	/** The link phrases note's vault path; blank means Link phrases.md beside the terms note. */
+	linksPath: string;
 	/**
 	 * 0.1.x's in-settings list, one per line. Never read for a take: moved into
 	 * the terms note once, or kept here until the user chooses (src/termsnote.ts).
@@ -30,6 +36,8 @@ export const DEFAULT_SETTINGS: SpokenSettings = {
 	termsPath: DEFAULT_TERMS_PATH,
 	polish: "light",
 	polishModel: DEFAULT_POLISH_MODEL,
+	links: false,
+	linksPath: "",
 };
 
 export const MIN_MINUTES = 1;
@@ -73,6 +81,8 @@ const NORMALISE: Partial<Record<keyof SpokenSettings, (v: unknown) => unknown>> 
 	maxMinutes: clampMinutes,
 	termsPath: (v) => String(v).trim() || DEFAULT_TERMS_PATH,
 	polishModel: (v) => String(v).trim() || DEFAULT_POLISH_MODEL,
+	links: (v) => v === true || v === "true",
+	linksPath: (v) => String(v).trim(),
 };
 
 /**
@@ -81,6 +91,9 @@ const NORMALISE: Partial<Record<keyof SpokenSettings, (v: unknown) => unknown>> 
  * are `render`s, which are searched by their name and description all the same.
  */
 export class SpokenSettingTab extends PluginSettingTab {
+	/** Redraws the link phrases note's line when a path changes. */
+	private linksNoteShown: (() => Promise<void>) | null = null;
+
 	constructor(
 		app: App,
 		private readonly plugin: SpokenPlugin,
@@ -97,8 +110,9 @@ export class SpokenSettingTab extends PluginSettingTab {
 		const normalise = NORMALISE[k];
 		Object.assign(this.plugin.settings, { [k]: normalise ? normalise(value) : value });
 		await this.plugin.saveSettings();
-		// The provider decides which fields are shown.
-		if (k === "provider") this.refreshDomState();
+		// The provider decides which fields are shown, and Links whether its note's row is.
+		if (k === "provider" || k === "links") this.refreshDomState();
+		if (k === "termsPath" || k === "linksPath") await this.linksNoteShown?.();
 	}
 
 	getSettingDefinitions(): SettingDefinitionItem[] {
@@ -172,6 +186,18 @@ export class SpokenSettingTab extends PluginSettingTab {
 				},
 			},
 			{
+				name: "Links",
+				desc: linksDesc(this.linksNotePath()),
+				aliases: ["Wiki-links", "Graph", "Link phrases"],
+				control: { type: "toggle", key: "links" },
+			},
+			{
+				name: LINKS_NOTE_NAME,
+				desc: LINKS_NOTE_DESC,
+				visible: () => s.links,
+				render: (setting) => this.linksNote(setting),
+			},
+			{
 				name: OLD_TERMS_NAME,
 				visible: () => s.terms !== undefined,
 				render: (setting) => this.oldTerms(setting),
@@ -230,6 +256,41 @@ export class SpokenSettingTab extends PluginSettingTab {
 		}
 	}
 
+	/** Where the link phrases note is read from. */
+	private linksNotePath(): string {
+		return linksPath(this.plugin.settings.linksPath, termsPath(this.plugin.settings.termsPath));
+	}
+
+	/**
+	 * The link phrases note's path, and Open beside it; while the note is
+	 * missing, one quiet line says where it would be read from and the button
+	 * is Create.
+	 */
+	private linksNote(setting: Setting): void {
+		const s = this.plugin.settings;
+		setting.setName(LINKS_NOTE_NAME).setDesc(LINKS_NOTE_DESC);
+		const missing = setting.descEl.createEl("p", { cls: "setting-item-description spoken-links-missing" });
+		let button: ButtonComponent | null = null;
+		const show = async () => {
+			const path = this.linksNotePath();
+			const exists = await this.plugin.linksNoteExists();
+			missing.setText(exists ? "" : `No note at ${path} yet, so nothing is linked.`);
+			button?.setButtonText(exists ? "Open" : "Create");
+		};
+		this.linksNoteShown = show;
+		setting
+			.addText((t) =>
+				t
+					.setPlaceholder(this.linksNotePath())
+					.setValue(s.linksPath)
+					.onChange((v) => this.setControlValue("linksPath", v)),
+			)
+			.addButton((b) => {
+				button = b.setButtonText("Open").onClick(() => void this.plugin.openLinksNote().then(show));
+			});
+		void show();
+	}
+
 	/** 0.1.x's list, still in settings because the note already existed. Nothing reads it. */
 	private oldTerms(setting: Setting): void {
 		const count = (this.plugin.settings.terms ?? "").split(/\r?\n/).filter((l) => l.trim()).length;
@@ -255,6 +316,9 @@ const POLISH_DESC =
 	"A second call on your key after the transcript comes back. Light corrects names to the terms note's spellings and fixes grammar, punctuation and casing, keeping every sentence in place. Full also reshapes sentences, makes paragraphs and turns a spoken list into a list. Nothing is ever added, dropped or answered; if the result doesn't hold up, the transcript is shown as heard.";
 const TERMS_NOTE_DESC =
 	"A note in this vault of names and terms you want spelled right, one per line. It is read on every take, with the open note's title and headings added.";
+const LINKS_NOTE_NAME = "Link phrases note";
+const LINKS_NOTE_DESC =
+	"Note names to link, one per line. After a pipe come other ways you say it: Ridge loop | the loop, ridge trail. A note's own aliases count too.";
 const OLD_TERMS_NAME = "Names and terms from before 0.2";
 const REPORT_DESC =
 	"Opens a new issue on GitHub with the plugin version, Obsidian version, platform and provider filled in. Never your key or a recording.";
@@ -278,6 +342,11 @@ export const KEY_PRICING: Part[] = [
 	{ text: "Google's Gemini API pricing page", href: GEMINI_PRICING_URL },
 	".",
 ];
+
+/** The Links row: what it does, and which note it reads. */
+export function linksDesc(path: string): string {
+	return `Turns the first mention of each name in ${path} into a [[link]] in the words that insert, whether that note exists yet or not, so your graph grows as you dictate. The terms note is never linked.`;
+}
 
 /** The Alerts row: how the three moments reach this device; no setting, just what is in use. */
 export function signalLine(path: SignalPath): string {

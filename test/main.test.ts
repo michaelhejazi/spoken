@@ -30,6 +30,7 @@ vi.mock("obsidian", () => {
 		Platform: { isMobile: true, isAndroidApp: true, isIosApp: false, isMacOS: false, isWin: false, isLinux: true },
 		apiVersion: "1.9.14",
 		normalizePath: (p: string) => p,
+		parseFrontMatterAliases: (fm: { aliases?: string[] } | null) => fm?.aliases ?? null,
 		requestUrl: vi.fn(),
 	};
 });
@@ -37,6 +38,7 @@ vi.mock("obsidian", () => {
 const { TFile } = await import("obsidian");
 const { default: SpokenPlugin } = await import("../src/main");
 const { DEFAULT_SETTINGS } = await import("../src/settings");
+const { LINKS_NOTE_HEADER } = await import("../src/links");
 
 /** A vault holding some files, a workspace that records what it opened, and the private settings window. */
 function app(files: Record<string, string> = {}) {
@@ -124,5 +126,44 @@ describe("opening the terms note", () => {
 		for (const f of readdirSync(dir)) {
 			expect(readFileSync(new URL(f, dir), "utf8"), f).not.toMatch(/\.setting\b|\bsetting\?\./);
 		}
+	});
+});
+
+describe("the link phrases note", () => {
+	/** A vault with the phrases note and two notes in the metadata cache, one with aliases. */
+	function vault() {
+		const files = { "Lists/Dictation terms.md": "", "Lists/Link phrases.md": "Quillmate | quill\nRidge loop\nTrail notes\nSales deck" };
+		const { a } = app(files);
+		const notes: Record<string, { path: string; basename: string; aliases?: string[] }> = {
+			quillmate: { path: "Quillmate.md", basename: "Quillmate", aliases: ["QM"] },
+			"ridge loop": { path: "Places/Ridge loop.md", basename: "Ridge loop" },
+		};
+		const here = { path: "Daily/Trail notes.md", basename: "Trail notes" };
+		const metadataCache = {
+			getFirstLinkpathDest: (target: string) => notes[target.toLowerCase()] ?? null,
+			getFileCache: (f: { aliases?: string[] }) => ({ frontmatter: f.aliases ? { aliases: f.aliases } : undefined }),
+		};
+		const plugin = new SpokenPlugin({ ...a, metadataCache } as never, {} as never);
+		plugin.settings = { ...DEFAULT_SETTINGS, termsPath: "Lists/Dictation terms", links: true };
+		return { plugin, here, files };
+	}
+
+	it("is read beside the terms note, each target with its note's aliases, and the open note left out", async () => {
+		const { plugin, here } = vault();
+		const phrases = await (plugin as unknown as { phrasesFor(f: unknown): Promise<unknown> }).phrasesFor(here);
+		expect(phrases).toEqual([
+			{ target: "Quillmate", aliases: ["quill", "QM"] },
+			{ target: "Ridge loop", aliases: [] },
+			{ target: "Sales deck", aliases: [] },
+		]);
+	});
+
+	it("Create writes the two lines on the format, beside the terms note", async () => {
+		const { plugin, files } = vault();
+		delete (files as Record<string, string>)["Lists/Link phrases.md"];
+		expect(await plugin.linksNoteExists()).toBe(false);
+		await plugin.openLinksNote();
+		expect(files["Lists/Link phrases.md"]).toBe(LINKS_NOTE_HEADER);
+		expect(await plugin.linksNoteExists()).toBe(true);
 	});
 });

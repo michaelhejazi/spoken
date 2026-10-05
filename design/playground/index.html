@@ -432,6 +432,37 @@ h1 { font-size: 15px; font-weight: 600; margin: 0; }
 	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
 }
 
+/* The meta line's right end: the level control, then the link glyph. */
+.spoken-meta-end {
+	display: flex;
+	flex: none;
+	align-items: center;
+	gap: var(--size-4-2);
+}
+.modal.spoken-modal button.spoken-link {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 32px;
+	height: 32px;
+	padding: 0;
+	border: none;
+	border-radius: var(--radius-l);
+	background: transparent;
+	box-shadow: none;
+	color: var(--text-faint);
+	cursor: pointer;
+	transition: background-color 150ms ease, color 150ms ease;
+}
+.modal.spoken-modal button.spoken-link svg {
+	width: 16px;
+	height: 16px;
+}
+.modal.spoken-modal button.spoken-link.is-active {
+	background: var(--background-modifier-hover);
+	color: var(--interactive-accent);
+}
+
 /* Failed and Unsupported: the message is the hero. */
 .spoken-message {
 	flex: 1;
@@ -582,7 +613,7 @@ h1 { font-size: 15px; font-weight: 600; margin: 0; }
 			<div class="titlebar"><span>‹</span><b>Trail notes</b><span>⋯</span></div>
 			<div class="note">
 				<h2>Trail notes</h2>
-				<p>Walked the ridge loop before the call with Simin. The dental thing keeps coming back to the same question: who is the one customer this is for.</p>
+				<p>Walked the ridge loop before the onboarding call. The dental thing keeps coming back to the same question: who is the one customer this is for.</p>
 				<p>Notes from the onboarding calls, so far:</p>
 			</div>
 			<div id="phone-host"></div>
@@ -594,7 +625,7 @@ h1 { font-size: 15px; font-weight: 600; margin: 0; }
 			<div class="ribbon"></div><div class="side"></div>
 			<div class="note">
 				<h2>Trail notes</h2>
-				<p>Walked the ridge loop before the call with Simin. The dental thing keeps coming back to the same question: who is the one customer this is for.</p>
+				<p>Walked the ridge loop before the onboarding call. The dental thing keeps coming back to the same question: who is the one customer this is for.</p>
 				<p>Notes from the onboarding calls, so far:</p>
 			</div>
 			<div id="desk-host"></div>
@@ -605,6 +636,63 @@ h1 { font-size: 15px; font-weight: 600; margin: 0; }
 <script>
 "use strict";
 (() => {
+  // src/links.ts
+  var PROTECTED = /!?\[\[[\s\S]*?\]\]|(`+)[\s\S]*?\1|\[[^\]\n]*\]\([^)\n]*\)|\b[a-z][a-z0-9+.-]*:\/\/\S+|\bwww\.\S+/gi;
+  var WORD = /[\p{L}\p{N}_]/u;
+  var SUFFIX = /^(?:['’]s|s)/i;
+  function linkText(text, phrases) {
+    if (!phrases.length || !text) return text;
+    const blocked = [];
+    for (const m of text.matchAll(PROTECTED)) blocked.push([m.index, m.index + m[0].length]);
+    const forms = /* @__PURE__ */ new Map();
+    for (const p of phrases) {
+      for (const form of [p.target, ...p.aliases]) {
+        const f = form.trim();
+        if (f && !/[[\]|\n]/.test(f) && !forms.has(f.toLocaleLowerCase())) forms.set(f.toLocaleLowerCase(), p.target);
+      }
+    }
+    const found2 = [];
+    for (const [form, target] of forms) {
+      const pattern = new RegExp(escape(form).replace(/\s+/g, "[^\\S\\n]+"), "giu");
+      for (const m of text.matchAll(pattern)) {
+        const start = m.index, end = start + m[0].length;
+        if (WORD.test(form[0]) && start > 0 && WORD.test(text[start - 1])) continue;
+        let stop = end;
+        if (WORD.test(form[form.length - 1])) {
+          const suffix = SUFFIX.exec(text.slice(end));
+          if (suffix && !WORD.test(text[end + suffix[0].length] ?? "")) stop = end + suffix[0].length;
+          else if (WORD.test(text[end] ?? "")) continue;
+        }
+        found2.push({ start, end, stop, target });
+      }
+    }
+    found2.sort((a, b) => b.end - b.start - (a.end - a.start) || a.start - b.start);
+    const taken = [];
+    for (const m of found2) {
+      const overlaps = (s, e) => m.start < e && s < m.stop;
+      if (blocked.some(([s, e]) => overlaps(s, e)) || taken.some((t) => overlaps(t.start, t.stop))) continue;
+      taken.push(m);
+    }
+    taken.sort((a, b) => a.start - b.start);
+    const linked = /* @__PURE__ */ new Set();
+    let out = "", at = 0;
+    for (const m of taken) {
+      const key = m.target.toLocaleLowerCase();
+      if (linked.has(key)) continue;
+      linked.add(key);
+      const said = text.slice(m.start, m.end);
+      out += text.slice(at, m.start) + (same(said, m.target) ? `[[${m.target}]]` : `[[${m.target}|${said}]]`);
+      at = m.end;
+    }
+    return out + text.slice(at);
+  }
+  function same(a, b) {
+    return a.toLocaleLowerCase() === b.toLocaleLowerCase();
+  }
+  function escape(s) {
+    return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
   // design/playground/obsidian-stub.ts
   var proto = HTMLElement.prototype;
   proto.createEl = function(tag, o = {}) {
@@ -640,6 +728,15 @@ h1 { font-size: 15px; font-weight: 600; margin: 0; }
   proto.setCssProps = function(props) {
     for (const [k, v] of Object.entries(props)) this.style.setProperty(k, v);
   };
+  var ICONS = {
+    link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>'
+  };
+  function setIcon(parent, name) {
+    parent.insertAdjacentHTML(
+      "afterbegin",
+      `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="svg-icon lucide-${name}">${ICONS[name] ?? ""}</svg>`
+    );
+  }
   var App = class {
   };
   var TFile = class {
@@ -837,6 +934,9 @@ h1 { font-size: 15px; font-weight: 600; margin: 0; }
       /** The transcript as heard: kept for re-polishing until Insert or Discard, never written anywhere. */
       this.raw = null;
       this.durationMs = 0;
+      /** Links for this take: null when the setting was off, else whether the toggle is lit. */
+      this.linksOn = null;
+      this.phrases = [];
       /** Bumped on every way out of a phase, so late answers from an old one are ignored. */
       this.generation = 0;
       this.listeners = [];
@@ -859,6 +959,8 @@ h1 { font-size: 15px; font-weight: 600; margin: 0; }
       this.raw = null;
       this.durationMs = 0;
       this.warned = false;
+      this.linksOn = this.deps.links() ? true : null;
+      this.phrases = [];
       const gen = ++this.generation;
       const recorder = this.deps.recorders();
       if (!recorder) {
@@ -939,6 +1041,13 @@ h1 { font-size: 15px; font-weight: 600; margin: 0; }
       this.generation++;
       this.ready({ text: this.raw.text, level, ran: false, why: WHY_SKIPPED });
     }
+    /** The link toggle on the Ready sheet: the same words with or without links, no call made. */
+    setLinks(on) {
+      const p = this._phase;
+      if (p.kind !== "ready" || p.targetGone || this.linksOn === null) return;
+      this.linksOn = on;
+      this.set({ ...p, links: on, text: this.linked(p.polish.text) });
+    }
     /** Insert was pressed but the editor is no longer there: keep the words, offer Copy. */
     targetGone() {
       if (this._phase.kind === "ready") this.set({ ...this._phase, targetGone: true });
@@ -963,6 +1072,8 @@ h1 { font-size: 15px; font-weight: 600; margin: 0; }
         const result = await this.deps.transcriber.transcribe(take.audio, take.mimeType, terms);
         if (gen !== this.generation) return;
         this.raw = { text: result.text, biased: result.biased };
+        if (this.linksOn !== null) this.phrases = await this.readPhrases();
+        if (gen !== this.generation) return;
       } catch (e) {
         if (gen !== this.generation) return;
         const message = e instanceof TranscribeError ? e.message : "The recording couldn't be cleaned.";
@@ -990,9 +1101,22 @@ h1 { font-size: 15px; font-weight: 600; margin: 0; }
       if (gen !== this.generation) return;
       this.ready(result);
     }
+    /** Links go in last, over whatever Polish gave back, so a re-polish is linked afresh. */
     ready(polish) {
       if (!this.raw) return;
-      this.set({ kind: "ready", text: polish.text, biased: this.raw.biased, durationMs: this.durationMs, targetGone: false, polish });
+      const links = this.linksOn === null ? {} : { links: this.linksOn };
+      this.set({ kind: "ready", text: this.linked(polish.text), biased: this.raw.biased, durationMs: this.durationMs, targetGone: false, polish, ...links });
+    }
+    linked(text) {
+      return this.linksOn ? linkText(text, this.phrases) : text;
+    }
+    /** No phrases rather than a failed take. */
+    async readPhrases() {
+      try {
+        return await this.deps.linkPhrases();
+      } catch {
+        return [];
+      }
     }
     tick() {
       if (this._phase.kind !== "recording") return;
@@ -1155,9 +1279,12 @@ h1 { font-size: 15px; font-weight: 600; margin: 0; }
           this.textEl = body.createDiv({ cls: "spoken-text", text: p.text });
           this.textEl.addEventListener("scroll", () => this.updateFade());
           const meta = body.createDiv({ cls: "spoken-meta" });
-          meta.createSpan({ cls: "spoken-facts", text: `${words(p.text)} ${plural(words(p.text), "word")} \xB7 ${fmt(p.durationMs)}` });
+          const n = words(p.polish.text);
+          meta.createSpan({ cls: "spoken-facts", text: `${n} ${plural(n, "word")} \xB7 ${fmt(p.durationMs)}` });
           if (!p.targetGone) {
-            this.levelControl(meta, selectedLevel(p.polish));
+            const end = meta.createDiv({ cls: "spoken-meta-end" });
+            this.levelControl(end, selectedLevel(p.polish));
+            if (p.links !== void 0) this.linkToggle(end, p.links);
             if (!p.polish.ran) body.createDiv({ cls: "spoken-note", text: `Polish did not run: ${p.polish.why}. This is the transcript as heard.` });
             this.foot(foot, ["Insert", () => this.insert(p.text)], [
               ["Discard", () => this.close()],
@@ -1288,6 +1415,15 @@ h1 { font-size: 15px; font-weight: 600; margin: 0; }
         });
       }
     }
+    /** The link glyph: lit when this take's names are linked; a tap shows the words the other way, at once. */
+    linkToggle(parent, on) {
+      const b = parent.createEl("button", {
+        cls: ["spoken-link", ...on ? ["is-active"] : []],
+        attr: { "aria-label": on ? "Links on" : "Links off", "aria-pressed": on ? "true" : "false" }
+      });
+      setIcon(b, "link");
+      b.addEventListener("click", () => this.session.setLinks(!on));
+    }
     updateRecording(p) {
       this.clockEl?.setText(fmt(p.elapsedMs));
       if (!this.captionEl) return;
@@ -1383,8 +1519,15 @@ h1 { font-size: 15px; font-weight: 600; margin: 0; }
   // design/playground/main.ts
   var CAP_MS = 5 * 6e4;
   var NOTE = "Trail notes \u2014 the one-customer question";
-  var SHORT = "Call Simin back about the trial before Friday.";
-  var LONG = "Walked the ridge loop before the call with Simin. What I keep coming back to is the one-customer question. Flio has about ten practices paying; if I take the trial to year end at five to ten hours a week, the thing to decide first is which single practice we design for, not the equity.\n\nSecond thing: the onboarding call. Every practice asked the same three questions in the first ten minutes, and none of them were about price. They wanted to know who sees the recordings, whether the front desk has to change anything, and what happens when the internet drops in the middle of a day. If the answers to those fit on one page, that page is the sales deck.\n\nLast: book the dentist, and ask Lena whether the cabin is free the second weekend of November.";
+  var SHORT = "Call the clinic back about the trial before Friday.";
+  var LONG = "Walked the ridge loop before the onboarding call. What I keep coming back to is the one-customer question. Quillmate has about ten practices paying; if I take the trial to year end at five to ten hours a week, the thing to decide first is which single practice we design for, not the equity.\n\nSecond thing: the onboarding call. Every practice asked the same three questions in the first ten minutes, and none of them were about price. They wanted to know who sees the recordings, whether the front desk has to change anything, and what happens when the internet drops in the middle of a day. If the answers to those fit on one page, that page is the sales deck.\n\nLast: book the dentist, and check whether the cabin is free the second weekend of November.";
+  var PHRASES = [
+    { target: "Ridge loop", aliases: [] },
+    { target: "Quillmate", aliases: [] },
+    { target: "Onboarding calls", aliases: ["onboarding call"] },
+    { target: "Sales deck", aliases: [] },
+    { target: "One-customer question", aliases: [] }
+  ];
   var ready = (text, extra = {}) => ({
     kind: "ready",
     text,
@@ -1402,6 +1545,8 @@ h1 { font-size: 15px; font-weight: 600; margin: 0; }
     { name: "Cleaning, Polish off", phase: { kind: "cleaning", durationMs: 42e3, terms: 12 }, polishOff: true },
     { name: "Polishing", phase: { kind: "polishing", durationMs: 42e3, level: "light" } },
     { name: "Ready, long", phase: ready(LONG) },
+    { name: "Ready, links on", phase: ready(linkText(LONG, PHRASES), { polish: { text: LONG, level: "light", ran: true }, links: true }) },
+    { name: "Ready, links off", phase: ready(LONG, { links: false }) },
     { name: "Ready, short", phase: ready(SHORT) },
     { name: "Ready, not polished", phase: ready(SHORT, { polish: { text: SHORT, level: "light", ran: false, why: "Gemini took too long" } }) },
     { name: "Ready, note gone", phase: ready(SHORT, { targetGone: true }) },
@@ -1489,6 +1634,12 @@ h1 { font-size: 15px; font-weight: 600; margin: 0; }
       for (const name of ACTIONS) {
         inside.session[name] = (arg) => log(`Pressed: session.${name}(${arg ?? ""})`);
       }
+      inside.session.setLinks = (on) => {
+        const p = this.state?.phase;
+        if (p?.kind !== "ready") return;
+        log(`Pressed: session.setLinks(${on})`);
+        inside.render({ ...p, links: on, text: on ? linkText(p.polish.text, PHRASES) : p.polish.text });
+      };
       return modal;
     }
   };

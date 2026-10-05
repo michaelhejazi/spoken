@@ -1,7 +1,8 @@
-import { Editor, MarkdownFileInfo, Notice, Platform, Plugin, TFile, apiVersion, normalizePath, requestUrl } from "obsidian";
+import { Editor, MarkdownFileInfo, Notice, Platform, Plugin, TFile, apiVersion, normalizePath, parseFrontMatterAliases, requestUrl } from "obsidian";
 import { issueUrl, platformName } from "./feedback";
 import { HttpClient } from "./http";
 import { CHECK_WAIT_MS, KeyCheck, MODELS_ENDPOINT, checkGeminiKey } from "./keycheck";
+import { LINKS_NOTE_HEADER, Phrase, linksPath, readLinksNote, withNoteAliases } from "./links";
 import { DictateModal } from "./modal";
 import { PROVIDERS, makePolisher, makeTranscriber } from "./provider";
 import { mediaRecorderFactory } from "./recorder";
@@ -73,6 +74,8 @@ export default class SpokenPlugin extends Plugin {
 				polisher: makePolisher(() => this.settings, http),
 				polishLevel: () => this.settings.polish,
 				polishTerms: () => this.polishTermsFor(file),
+				links: () => this.settings.links,
+				linkPhrases: () => this.phrasesFor(file),
 				capMs: clampMinutes(this.settings.maxMinutes) * 60_000,
 				clock: realClock,
 				signal: (m) => this.signals.signal(m),
@@ -115,6 +118,37 @@ export default class SpokenPlugin extends Plugin {
 		return allTerms(await readTermsNote(this.notes, this.termsPath()), file.basename, headings);
 	}
 
+	/**
+	 * The link phrases note's targets, read fresh like the terms, each with the
+	 * aliases of the vault's note of that name. The open note is left out: it
+	 * would only link to itself.
+	 */
+	private async phrasesFor(file: TFile): Promise<Phrase[]> {
+		const cache = this.app.metadataCache;
+		const phrases = (await readLinksNote(this.notes, this.linksPath())).filter((p) => {
+			const dest = cache.getFirstLinkpathDest(p.target, file.path);
+			return dest !== file && p.target.toLocaleLowerCase() !== file.basename.toLocaleLowerCase();
+		});
+		return withNoteAliases(phrases, (target) => {
+			const dest = cache.getFirstLinkpathDest(target, file.path);
+			return (dest && parseFrontMatterAliases(cache.getFileCache(dest)?.frontmatter)) || [];
+		});
+	}
+
+	private linksPath(): string {
+		return normalizePath(linksPath(this.settings.linksPath, this.termsPath()));
+	}
+
+	/** Settings → Link phrases note: whether it is there yet. */
+	linksNoteExists(): Promise<boolean> {
+		return this.app.vault.adapter.exists(this.linksPath());
+	}
+
+	/** Settings → Link phrases note → Create or Open: as for the terms note, with the format's two lines. */
+	openLinksNote(): Promise<void> {
+		return this.openNote(this.linksPath(), LINKS_NOTE_HEADER);
+	}
+
 	private termsPath(): string {
 		return normalizePath(termsPath(this.settings.termsPath));
 	}
@@ -144,9 +178,12 @@ export default class SpokenPlugin extends Plugin {
 	 * Obsidian's public API has no way to close the settings window, so it stays
 	 * open over the note and a notice says where the note is.
 	 */
-	async openTermsNote(): Promise<void> {
-		const path = this.termsPath();
-		await ensureTermsNote(this.notes, path);
+	openTermsNote(): Promise<void> {
+		return this.openNote(this.termsPath());
+	}
+
+	private async openNote(path: string, header?: string): Promise<void> {
+		await ensureTermsNote(this.notes, path, header);
 		const file = this.app.vault.getAbstractFileByPath(path);
 		if (!(file instanceof TFile)) return;
 		await this.app.workspace.getLeaf("tab").openFile(file);

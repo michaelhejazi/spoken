@@ -7,6 +7,32 @@ GitHub release with `main.js`, `manifest.json` and `styles.css` attached.
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-05
+
+### Added
+
+- **Links**, off until you turn it on. Each take's first mention of a name
+  in the link phrases note becomes a wiki-link, `[[Target]]`, or
+  `[[Target|words as said]]` when you said it another way, whether that note
+  exists yet or not. Spoken inserts the links itself, after Polish (or with
+  Polish off), so none is ever invented. Matching ignores case and keeps to
+  whole words, a trailing 's or plural s stays outside the brackets, the
+  longest phrase wins, and existing links, code, Markdown links and URLs
+  are left alone.
+- The link phrases note, `Link phrases.md` beside the terms note by
+  default. It is read afresh every take with the terms note's rules, plus
+  one: `Target | alias, alias`. A note's own `aliases` frontmatter counts
+  too. While the note is missing, settings says where it would be read
+  from, and Create writes it with two lines explaining the format.
+- On the Ready sheet, a link icon at the right end of the meta line, lit
+  while this take's links are on. A tap shows the words without links, or
+  with them again, at once and with no call made. The words show the
+  brackets as they will be inserted.
+
+### Changed
+
+- The README's and the playground's example names are made up now.
+
 ## [0.6.0] - 2026-10-04
 
 ### Changed
@@ -215,7 +241,8 @@ the repository's public history.
 - Retake, Discard and Try again; a failed take is kept with a sentence saying
   why.
 
-[Unreleased]: https://github.com/michaelhejazi/spoken/compare/0.6.0...HEAD
+[Unreleased]: https://github.com/michaelhejazi/spoken/compare/0.7.0...HEAD
+[0.7.0]: https://github.com/michaelhejazi/spoken/compare/0.6.0...0.7.0
 [0.6.0]: https://github.com/michaelhejazi/spoken/compare/0.5.0...0.6.0
 [0.5.0]: https://github.com/michaelhejazi/spoken/compare/0.4.0...0.5.0
 [0.4.0]: https://github.com/michaelhejazi/spoken/compare/0.3.3...0.4.0

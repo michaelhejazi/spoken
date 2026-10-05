@@ -3,6 +3,7 @@
 // buttons here; nothing in this file touches the DOM or Obsidian, so every
 // path through it is tested without a device.
 
+import { Phrase, linkText } from "./links";
 import { PolishLevel, Polished, Polisher, WHY_SKIPPED, polishTranscript } from "./polish";
 import { Recorder, RecorderCancelled, RecorderFactory, Recording, microphoneError } from "./recorder";
 import type { Moment } from "./signals";
@@ -20,8 +21,12 @@ export type Phase =
 	| { kind: "cleaning"; durationMs: number; terms: number | null }
 	/** The transcript is back; Polish is reading it at this level. */
 	| { kind: "polishing"; durationMs: number; level: Exclude<PolishLevel, "off"> }
-	/** `polish` says which level ran, or that it didn't and why; the text is then the transcript as heard. */
-	| { kind: "ready"; text: string; biased: boolean; durationMs: number; targetGone: boolean; polish: Polished }
+	/**
+	 * `polish` says which level ran, or that it didn't and why; its text is then the transcript as heard.
+	 * `text` is what shows and what inserts: Polish's text, with links when `links` is true. `links` is
+	 * absent when the Links setting was off as the take began.
+	 */
+	| { kind: "ready"; text: string; biased: boolean; durationMs: number; targetGone: boolean; polish: Polished; links?: boolean }
 	/** Not cleaned. With the take kept, Try again resends it; without one, it records afresh. */
 	| { kind: "failed"; message: string; durationMs: number; takeKept: boolean }
 	| { kind: "closed" };
@@ -49,6 +54,10 @@ export interface SessionDeps {
 	polishLevel: () => PolishLevel;
 	/** Every name and term, uncapped, read when Polish runs. */
 	polishTerms: () => string[] | Promise<string[]>;
+	/** The Links setting, read as each take begins. */
+	links: () => boolean;
+	/** The link phrases note, read when the transcript is back, if Links is on. */
+	linkPhrases: () => Phrase[] | Promise<Phrase[]>;
 	capMs: number;
 	clock: Clock;
 	/** The three moments a walker feels: started, thirty seconds left, stopped at the cap (src/signals.ts). */
@@ -67,6 +76,9 @@ export class DictationSession {
 	/** The transcript as heard: kept for re-polishing until Insert or Discard, never written anywhere. */
 	private raw: { text: string; biased: boolean } | null = null;
 	private durationMs = 0;
+	/** Links for this take: null when the setting was off, else whether the toggle is lit. */
+	private linksOn: boolean | null = null;
+	private phrases: Phrase[] = [];
 	/** Bumped on every way out of a phase, so late answers from an old one are ignored. */
 	private generation = 0;
 	private listeners: Array<(p: Phase) => void> = [];
@@ -94,6 +106,8 @@ export class DictationSession {
 		this.raw = null;
 		this.durationMs = 0;
 		this.warned = false;
+		this.linksOn = this.deps.links() ? true : null;
+		this.phrases = [];
 		const gen = ++this.generation;
 
 		const recorder = this.deps.recorders();
@@ -181,6 +195,14 @@ export class DictationSession {
 		this.ready({ text: this.raw.text, level, ran: false, why: WHY_SKIPPED });
 	}
 
+	/** The link toggle on the Ready sheet: the same words with or without links, no call made. */
+	setLinks(on: boolean): void {
+		const p = this._phase;
+		if (p.kind !== "ready" || p.targetGone || this.linksOn === null) return;
+		this.linksOn = on;
+		this.set({ ...p, links: on, text: this.linked(p.polish.text) });
+	}
+
 	/** Insert was pressed but the editor is no longer there: keep the words, offer Copy. */
 	targetGone(): void {
 		if (this._phase.kind === "ready") this.set({ ...this._phase, targetGone: true });
@@ -208,6 +230,8 @@ export class DictationSession {
 			const result = await this.deps.transcriber.transcribe(take.audio, take.mimeType, terms);
 			if (gen !== this.generation) return;
 			this.raw = { text: result.text, biased: result.biased };
+			if (this.linksOn !== null) this.phrases = await this.readPhrases();
+			if (gen !== this.generation) return;
 		} catch (e) {
 			if (gen !== this.generation) return;
 			const message = e instanceof TranscribeError ? e.message : "The recording couldn't be cleaned.";
@@ -238,9 +262,24 @@ export class DictationSession {
 		this.ready(result);
 	}
 
+	/** Links go in last, over whatever Polish gave back, so a re-polish is linked afresh. */
 	private ready(polish: Polished): void {
 		if (!this.raw) return;
-		this.set({ kind: "ready", text: polish.text, biased: this.raw.biased, durationMs: this.durationMs, targetGone: false, polish });
+		const links = this.linksOn === null ? {} : { links: this.linksOn };
+		this.set({ kind: "ready", text: this.linked(polish.text), biased: this.raw.biased, durationMs: this.durationMs, targetGone: false, polish, ...links });
+	}
+
+	private linked(text: string): string {
+		return this.linksOn ? linkText(text, this.phrases) : text;
+	}
+
+	/** No phrases rather than a failed take. */
+	private async readPhrases(): Promise<Phrase[]> {
+		try {
+			return await this.deps.linkPhrases();
+		} catch {
+			return [];
+		}
 	}
 
 	private tick(): void {

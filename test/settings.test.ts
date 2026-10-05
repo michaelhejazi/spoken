@@ -165,12 +165,15 @@ function draw(t: Tab): void {
 	walk(t.getSettingDefinitions());
 }
 
+let linksNoteThere = false;
 function tab(settings: Settings) {
 	const plugin = {
 		settings,
 		saveSettings: vi.fn(async () => {}),
 		signals: { path: () => "vibration" as const },
 		openTermsNote: vi.fn(async () => {}),
+		linksNoteExists: vi.fn(async () => linksNoteThere),
+		openLinksNote: vi.fn(async () => void (linksNoteThere = true)),
 		appendOldTerms: vi.fn(async () => {}),
 		checkGeminiKey: vi.fn(async () => ({ outcome: "refused", sentence: "Google refused this key." })),
 		reportUrl: vi.fn(() => "https://github.com/michaelhejazi/spoken/issues/new?body=x"),
@@ -326,6 +329,53 @@ describe("the provider's fields", () => {
 	});
 });
 
+describe("Links", () => {
+	const flush = () => new Promise((r) => setTimeout(r, 0));
+
+	it("off on a fresh install, and the note's row shows only once it is on", () => {
+		expect(DEFAULT_SETTINGS.links).toBe(false);
+		tab({ ...DEFAULT_SETTINGS });
+		expect(row("Links").controls).toMatchObject([{ kind: "toggle", key: "links", value: "false" }]);
+		expect(names()).not.toContain("Link phrases note");
+		tab({ ...DEFAULT_SETTINGS, links: true });
+		expect(names()).toContain("Link phrases note");
+	});
+
+	it("the description says what it does and names the note, beside the terms note by default", () => {
+		tab({ ...DEFAULT_SETTINGS });
+		expect(row("Links").desc).toMatch(/^Turns the first mention of each name in Link phrases\.md into a \[\[link\]\]/);
+		tab({ ...DEFAULT_SETTINGS, termsPath: "Lists/Dictation terms.md" });
+		expect(row("Links").desc).toContain(" Lists/Link phrases.md ");
+		tab({ ...DEFAULT_SETTINGS, termsPath: "Lists/Dictation terms.md", linksPath: "Graph/nodes" });
+		expect(row("Links").desc).toContain(" Graph/nodes.md ");
+	});
+
+	it("turning it on saves a boolean and shows the note's row", async () => {
+		const settings = { ...DEFAULT_SETTINGS };
+		const { t, refreshes } = tab(settings);
+		await t.setControlValue("links", true);
+		expect(settings.links).toBe(true);
+		expect(refreshes()).toBe(1);
+	});
+
+	it("a missing note: one quiet line saying where it would be read from, and Create writes it", async () => {
+		linksNoteThere = false;
+		const { plugin } = tab({ ...DEFAULT_SETTINGS, links: true, termsPath: "Lists/Dictation terms.md" });
+		await flush();
+		const r = row("Link phrases note");
+		expect(textOf(r.descEl)).toBe("No note at Lists/Link phrases.md yet, so nothing is linked.");
+		expect(r.controls.map((c) => [c.kind, c.value])).toEqual([
+			["text", ""],
+			["button", "Create"],
+		]);
+		await r.controls[1].onClick!();
+		await flush();
+		expect(plugin.openLinksNote).toHaveBeenCalledTimes(1);
+		expect(textOf(r.descEl)).toBe("");
+		expect(r.controls[1].value).toBe("Open");
+	});
+});
+
 describe("settings search (Obsidian 1.13's declarative settings)", () => {
 	it("the tab is declared, not drawn: no display() of its own", () => {
 		expect(Object.getOwnPropertyNames(SpokenSettingTab.prototype)).not.toContain("display");
@@ -343,6 +393,8 @@ describe("settings search (Obsidian 1.13's declarative settings)", () => {
 			"Longest recording",
 			"Alerts",
 			"Names and terms note",
+			"Links",
+			"Link phrases note",
 			"Names and terms from before 0.2",
 			"Report a problem",
 		]);
