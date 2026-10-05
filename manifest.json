@@ -1,7 +1,7 @@
 {
 	"id": "spoken",
 	"name": "Spoken",
-	"version": "0.7.1",
+	"version": "0.7.2",
 	"minAppVersion": "1.13.0",
 	"description": "Speak into a note on phone or desktop and get clean text at the cursor: transcribed by Gemini under your own API key, with your own names spelled right.",
 	"author": "Michael Hejazi",

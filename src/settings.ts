@@ -187,7 +187,7 @@ export class SpokenSettingTab extends PluginSettingTab {
 			},
 			{
 				name: "Links",
-				desc: linksDesc(this.linksNotePath()),
+				desc: LINKS_DESC,
 				aliases: ["Wiki-links", "Graph", "Link phrases"],
 				control: { type: "toggle", key: "links" },
 			},
@@ -316,6 +316,9 @@ const POLISH_DESC =
 	"A second call on your key after the transcript comes back. Light corrects names to the terms note's spellings and fixes grammar, punctuation and casing, keeping every sentence in place. Full also reshapes sentences, makes paragraphs and turns a spoken list into a list. Nothing is ever added, dropped or answered; if the result doesn't hold up, the transcript is shown as heard.";
 const TERMS_NOTE_DESC =
 	"A note in this vault of names and terms you want spelled right, one per line. It is read on every take, with the open note's title and headings added.";
+/** What Links does for you; where its note lives is the Link phrases note row's to say. */
+export const LINKS_DESC =
+	"The first mention of each name from your link phrases note becomes a [[link]] in the words that insert, whether a note by that name exists yet or not, so your graph grows as you dictate.";
 const LINKS_NOTE_NAME = "Link phrases note";
 const LINKS_NOTE_DESC =
 	"Note names to link, one per line. After a pipe come other ways you say it: Ridge loop | the loop, ridge trail. A note's own aliases count too.";
@@ -342,11 +345,6 @@ export const KEY_PRICING: Part[] = [
 	{ text: "Google's Gemini API pricing page", href: GEMINI_PRICING_URL },
 	".",
 ];
-
-/** The Links row: what it does, and which note it reads. */
-export function linksDesc(path: string): string {
-	return `Turns the first mention of each name in ${path} into a [[link]] in the words that insert, whether that note exists yet or not, so your graph grows as you dictate. The terms note is never linked.`;
-}
 
 /** The Alerts row: how the three moments reach this device; no setting, just what is in use. */
 export function signalLine(path: SignalPath): string {

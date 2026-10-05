@@ -17,18 +17,15 @@ Speak into a note in Obsidian and get clean text at the cursor, on your phone or
 [![Downloads](https://img.shields.io/badge/dynamic/json?logo=obsidian&color=%23483699&label=downloads&query=%24%5B%22spoken%22%5D.downloads&url=https%3A%2F%2Fraw.githubusercontent.com%2Fobsidianmd%2Fobsidian-releases%2Fmaster%2Fcommunity-plugin-stats.json)](https://obsidian.md/plugins?id=spoken)
 -->
 
-## How it works
+## What it is for
 
-1. **Tap the mic.** The sheet opens and starts recording.
-2. **Speak.** Press Stop when you are done; Gemini cleans up the take, then polishes it, and a thin line on the sheet shows which of the two is running.
-3. **Press Insert.** The words land at the cursor, as one undo step.
+You speak, and clean text lands at the cursor, on your phone or your desktop. The ums and false starts go, what you said stays, and Insert puts it in the note as one undo step.
 
-## Why this one
+The names you care about come out spelled right. You keep them in a note, one per line, and every take is heard, then read over, with that list in front of Gemini.
 
-- **Cleaned, not transcribed raw.** The ums and false starts go; what you said stays.
-- **Names spelled right.** A note in your vault lists the names and terms Gemini should expect.
-- **Polished, not just punctuated.** A second pass reads the transcript with your whole terms list, snaps a misheard name to its listed spelling, and fixes the grammar. It never adds, drops or answers anything.
-- **Your key, no account.** The take goes from your device to Google under your own key. There is no account, and the plugin keeps no copy.
+The names you say become links. Keep a second list of the names you want linked, and the first time one comes up in a take it is written as `[[Ridge loop]]`, whether or not that note exists yet. You never place a bracket, every take adds edges to your graph, and the vault gets richer the more you talk to it.
+
+It runs on your own Gemini API key, with no account: the take goes from your device to Google and nowhere else.
 
 ## Get started
 
@@ -61,7 +58,9 @@ Headings, blank lines, `%% comments %%`, frontmatter and list markers are ignore
 
 ## Links
 
-Turn on **Links** in settings (it is off until you do) and Spoken links the names you say to notes in your vault. Each name in the link phrases note becomes a wiki-link the first time it comes up in a take: `[[Ridge loop]]`, or `[[Ridge loop|the loop]]` when you said it another way. The note doesn't have to exist yet. An unresolved link still shows in the graph, and it connects the day you make the note, so the more you dictate, the more of your graph builds itself.
+Turn on **Links** in settings (it is off until you do) and Spoken links the names you say to notes in your vault. Each name in the link phrases note becomes a wiki-link the first time it comes up in a take: `[[Ridge loop]]`, or `[[Ridge loop|the loop]]` when you said it another way.
+
+The note doesn't have to exist yet. An unresolved link is still a node in Obsidian's graph, and it connects the day you make the note: every page that mentioned it is already pointing there. So the more you dictate, the more of your graph builds itself, without you typing a bracket. The link phrases note is a second list on purpose, apart from the terms note: tool and vendor names belong in the terms note, spelled right but never linked, and only the names worth a node go in the link phrases note.
 
 The phrases go in `Link phrases.md`, beside the terms note unless you set another path. One note name per line:
 
@@ -73,7 +72,7 @@ Sales deck, Onboarding calls
 
 After a `|` come the other ways you say it, separated by commas. Without a `|`, commas separate several names, as in the terms note. A note's own `aliases` frontmatter counts too. Headings, blank lines, `%% comments %%`, frontmatter and list markers are ignored, and the note is read afresh on every take. If it's missing, settings says where it would be read from, and **Create** writes it with two comment lines explaining the format.
 
-Spoken puts the links in itself, over the final words after Polish (or over the transcript when Polish is off). No model is asked to, so no link is ever invented. Matching ignores case and goes by whole words: a trailing `'s` or plural `s` still matches and stays outside the brackets. The longest phrase wins, so `Ridgeway Dental` is never split into a link to `Ridgeway`. Nothing is linked inside an existing link, backticks, a Markdown link or a URL. Keep the terms note for names that should be spelled right but never linked.
+Spoken puts the links in itself, over the final words after Polish (or over the transcript when Polish is off). No model is asked to, so no link is ever invented. Matching ignores case and goes by whole words: a trailing `'s` or plural `s` still matches and stays outside the brackets. The longest phrase wins, so `Ridgeway Dental` is never split into a link to `Ridgeway`. Nothing is linked inside an existing link, backticks, a Markdown link or a URL.
 
 On the Ready sheet, a small link icon at the right end of the line under the words is lit while links are on for this take. Tap it to see the same words without links, or with them again, instantly. The words show the brackets exactly as they will be inserted.
 
@@ -99,7 +98,7 @@ On the Ready sheet, a small Off · Light · Full control shows which level ran; 
 | Polish model | The Gemini text model that polishes. `gemini-3.5-flash-lite` by default. Check key checks it too. |
 | Longest recording | 1–15 minutes, 5 by default. The sheet turns amber thirty seconds before. |
 | Names and terms note | The note's path. **Open** opens it, creating it if it is missing. |
-| Links | Off by default. When on, the first mention of each name in the link phrases note becomes a wiki-link. See [Links](#links). |
+| Links | Off by default. When on, the first mention of each name from your link phrases note becomes a wiki-link, whether or not that note exists yet. See [Links](#links). |
 | Link phrases note | Shown while Links is on. The note's path, `Link phrases.md` beside the terms note by default. **Create** writes it if it is missing; **Open** opens it. |
 | Report a problem | Opens a GitHub issue with the plugin version, Obsidian version, platform and provider filled in. Never your key or a recording. |
 

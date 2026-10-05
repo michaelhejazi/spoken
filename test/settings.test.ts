@@ -122,7 +122,7 @@ vi.mock("obsidian", () => {
 });
 
 const { Setting } = await import("obsidian");
-const { SpokenSettingTab, upgradeSettings, DEFAULT_SETTINGS, PROVIDER_FIELDS, KEY_STEPS, KEY_PRICING, AI_STUDIO_KEYS_URL, GEMINI_PRICING_URL } =
+const { SpokenSettingTab, upgradeSettings, DEFAULT_SETTINGS, PROVIDER_FIELDS, KEY_STEPS, KEY_PRICING, AI_STUDIO_KEYS_URL, GEMINI_PRICING_URL, LINKS_DESC } =
 	await import("../src/settings");
 const { makeTranscriber, visibleProviders } = await import("../src/provider");
 const { GeminiTranscriber } = await import("../src/gemini");
@@ -341,13 +341,13 @@ describe("Links", () => {
 		expect(names()).toContain("Link phrases note");
 	});
 
-	it("the description says what it does and names the note, beside the terms note by default", () => {
-		tab({ ...DEFAULT_SETTINGS });
-		expect(row("Links").desc).toMatch(/^Turns the first mention of each name in Link phrases\.md into a \[\[link\]\]/);
-		tab({ ...DEFAULT_SETTINGS, termsPath: "Lists/Dictation terms.md" });
-		expect(row("Links").desc).toContain(" Lists/Link phrases.md ");
-		tab({ ...DEFAULT_SETTINGS, termsPath: "Lists/Dictation terms.md", linksPath: "Graph/nodes" });
-		expect(row("Links").desc).toContain(" Graph/nodes.md ");
+	it("the description says what it does and names no path, wherever the note is", () => {
+		for (const paths of [{}, { termsPath: "Lists/Dictation terms.md" }, { termsPath: "Lists/Dictation terms.md", linksPath: "Graph/nodes" }]) {
+			tab({ ...DEFAULT_SETTINGS, ...paths });
+			expect(row("Links").desc).toBe(LINKS_DESC);
+		}
+		expect(LINKS_DESC).toMatch(/^The first mention of each name from your link phrases note becomes a \[\[link\]\]/);
+		expect(LINKS_DESC).not.toMatch(/\.md|\//);
 	});
 
 	it("turning it on saves a boolean and shows the note's row", async () => {

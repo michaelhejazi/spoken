@@ -7,6 +7,18 @@ GitHub release with `main.js`, `manifest.json` and `styles.css` attached.
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-10-05
+
+### Changed
+
+- The Links setting says what it does and no longer names a path: the
+  first mention of each name from your link phrases note becomes a link,
+  whether or not that note exists yet. Where the note lives is the Link
+  phrases note row's to say, as before.
+- The README says what Spoken is for before how it works: clean words at
+  the cursor, names spelled right, and the names you say becoming links
+  that grow your graph.
+
 ## [0.7.1] - 2026-10-05
 
 ### Changed
@@ -251,7 +263,8 @@ the repository's public history.
 - Retake, Discard and Try again; a failed take is kept with a sentence saying
   why.
 
-[Unreleased]: https://github.com/michaelhejazi/spoken/compare/0.7.1...HEAD
+[Unreleased]: https://github.com/michaelhejazi/spoken/compare/0.7.2...HEAD
+[0.7.2]: https://github.com/michaelhejazi/spoken/compare/0.7.1...0.7.2
 [0.7.1]: https://github.com/michaelhejazi/spoken/compare/0.7.0...0.7.1
 [0.7.0]: https://github.com/michaelhejazi/spoken/compare/0.6.0...0.7.0
 [0.6.0]: https://github.com/michaelhejazi/spoken/compare/0.5.0...0.6.0
